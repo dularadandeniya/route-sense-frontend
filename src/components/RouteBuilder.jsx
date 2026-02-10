@@ -10,6 +10,7 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import RouteAnimator from "./RouteAnimator.jsx";
 
 const createIcon = (color) => {
     return new L.Icon({
@@ -118,6 +119,7 @@ const RouteBuilder = () => {
     const [routes, setRoutes] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedRoute, setSelectedRoute] = useState(null);
+    const [isAnimating, setIsAnimating] = useState(false);
 
     // Handlers
     const handleLocationChange = (type, id) => {
@@ -323,6 +325,14 @@ const RouteBuilder = () => {
                     >
                         {loading ? "Calculating..." : "Visualize Route"}
                     </button>
+
+                    <button
+                        className="btn btn-warning"
+                        onClick={() => setIsAnimating(true)}
+                        disabled={!selectedRoute} // Only active if a route is selected
+                    >
+                        ▶ Sim
+                    </button>
                 </div>
 
                 {selectedRoute && (
@@ -367,11 +377,31 @@ const RouteBuilder = () => {
                     style={{height: "100%", width: "100%"}}
                 >
                     <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution="&copy; OpenStreetMap"
+                        url="http://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                        attribution='&copy; Google Maps'
                     />
 
+                    {/*<TileLayer*/}
+                    {/*    attribution='&copy; OpenStreetMap'*/}
+                    {/*    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"*/}
+                    {/*/>|*/}
+
+                    {/*<TileLayer*/}
+                    {/*    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'*/}
+                    {/*    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"*/}
+                    {/*/>*/}
+
                     <FitBounds routes={routes}/>
+
+                    {selectedRoute && (
+                        <RouteAnimator
+                            key={selectedRoute.mode + selectedRoute.time_seconds}
+
+                            routeCoordinates={selectedRoute.route_sequence.map(p => [parseFloat(p.lat), parseFloat(p.lon)])}
+                            isPlaying={isAnimating}
+                            onAnimationEnd={() => setIsAnimating(false)}
+                        />
+                    )}
 
                     {request.start && (
                         <Marker position={[request.start.lat, request.start.lon]} icon={GreenIcon}>
