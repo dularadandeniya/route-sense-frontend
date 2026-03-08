@@ -94,7 +94,6 @@ const RouteBuilder = () => {
         start: null,
         end: null,
         stops: [],
-        trafficFactor: 1.0,
         weightKg: 50.0,
         vehicleType: "MEDIUM",
     });
@@ -103,6 +102,8 @@ const RouteBuilder = () => {
     const [loading, setLoading] = useState(false);
     const [selectedRoute, setSelectedRoute] = useState(null);
     const [isAnimating, setIsAnimating] = useState(false);
+    const [calculatedTrafficFactor, setCalculatedTrafficFactor] = useState(null);
+    const [showTrafficFactor, setShowTrafficFactor] = useState(false);
 
     // Picker Modal State
     const [pickerState, setPickerState] = useState({ isOpen: false, activeField: null });
@@ -159,7 +160,6 @@ const RouteBuilder = () => {
             endLat: request.end.lat,
             endLon: request.end.lon,
             endName: request.end.name,
-            trafficFactor: parseFloat(request.trafficFactor),
             weightKg: parseFloat(request.weightKg),
             vehicleType: request.vehicleType,
             stops: request.stops
@@ -177,9 +177,19 @@ const RouteBuilder = () => {
                 payload
             );
             setRoutes(res.data || []);
-            if (res.data?.length > 0) setSelectedRoute(res.data[0]);
-            else setSelectedRoute(null);
+
+            if (res.data?.length > 0) {
+                setSelectedRoute(res.data[0]);
+                setCalculatedTrafficFactor(res.data[0].avg_traffic_factor ?? null);
+                setShowTrafficFactor(true);
+            } else {
+                setSelectedRoute(null);
+                setCalculatedTrafficFactor(null);
+                setShowTrafficFactor(false);
+            }
         } catch (err) {
+            setCalculatedTrafficFactor(null);
+            setShowTrafficFactor(false);
             console.error(err);
             alert("Error: " + (err.response?.data?.error || err.message));
         }
@@ -271,6 +281,25 @@ const RouteBuilder = () => {
                         ))}
                     </div>
 
+                    {showTrafficFactor && (
+                        <div className="mb-2 border-top pt-2">
+                            <label className="fw-bold">🚦 Live Traffic Factor</label>
+                            <input
+                                type="text"
+                                className="form-control bg-white"
+                                readOnly
+                                value={
+                                    calculatedTrafficFactor !== null
+                                        ? `${Number(calculatedTrafficFactor).toFixed(2)}x`
+                                        : ""
+                                }
+                            />
+                            <small className="text-muted">
+                                Calculated dynamically from live traffic data.
+                            </small>
+                        </div>
+                    )}
+
                     {/* Vehicle & Traffic Controls */}
                     <div className="mb-2 border-top pt-2">
                         <label className="fw-bold">🚚 Vehicle Type</label>
@@ -287,31 +316,7 @@ const RouteBuilder = () => {
                         </select>
                     </div>
 
-                    <div className="mb-2 border-top pt-2">
-                        <label className="fw-bold">
-                            🚦 Traffic Factor:{" "}
-                            <span className="text-primary">{request.trafficFactor.toFixed(1)}x</span>
-                        </label>
 
-                        <input
-                            type="range"
-                            className="form-range"
-                            min="1.0"
-                            max="2.0"
-                            step="0.1"
-                            value={request.trafficFactor}
-                            onChange={(e) =>
-                                setRequest((prev) => ({
-                                    ...prev,
-                                    trafficFactor: parseFloat(e.target.value),
-                                }))
-                            }
-                        />
-                        <div className="d-flex justify-content-between small text-muted">
-                            <span>Light</span>
-                            <span>Heavy</span>
-                        </div>
-                    </div>
 
                     {/* Action Buttons */}
                     <button
@@ -419,7 +424,7 @@ const RouteBuilder = () => {
                         ]);
                         if (positions.length === 0) return null;
 
-                        const isOptimal = route.mode?.includes("Optimal");
+                        const isOptimal = route.mode?.includes("Recommended");
                         const selected = isSameRoute(selectedRoute, route);
 
                         // Visual Styling Logic

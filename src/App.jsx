@@ -2,7 +2,8 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./authentication/Login";
 import AuthService from "./authentication/AuthService";
-import RouteBuilder from "./components/RouteBuilder"; // Your main map component
+import RouteBuilder from "./components/RouteBuilder";
+import Register from "./authentication/Register.jsx"; // Your main map component
 
 // 🔒 Guard Component: Only allows access if logged in
 const PrivateRoute = ({ children }) => {
@@ -15,7 +16,9 @@ function App() {
         <Router>
             <Routes>
                 {/* Public Route: Login */}
+                {/* Public Routes */}
                 <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
                 {/* Protected Route: Dashboard (The Map) */}
                 <Route

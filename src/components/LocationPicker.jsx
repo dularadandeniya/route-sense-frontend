@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import axios from "axios";
 import L from "leaflet";
 
-// Fix for default marker icon
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
 const DefaultIcon = L.icon({
     iconUrl: icon,
     shadowUrl: iconShadow,
@@ -14,20 +14,17 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Component to handle map clicks
-const MapClickHandler = ({ onLocationSelect }) => {
+// Handle map clicks
+const MapClickHandler = ({ onLocationSelect, setQuery }) => {
     useMapEvents({
         click(e) {
             const { lat, lng } = e.latlng;
-            // Reverse Geocode (Get name from lat/lon)
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
                 .then((res) => res.json())
                 .then((data) => {
-                    onLocationSelect({
-                        lat: lat,
-                        lon: lng,
-                        name: data.display_name.split(",")[0], // Get just the first part of the address
-                    });
+                    const name = data.display_name.split(",")[0];
+                    onLocationSelect({ lat: lat, lon: lng, name: name });
+                    setQuery(name); // Update the search box
                 });
         },
     });
@@ -36,33 +33,57 @@ const MapClickHandler = ({ onLocationSelect }) => {
 
 const LocationPicker = ({ onClose, onConfirm }) => {
     const [query, setQuery] = useState("");
+    const [suggestions, setSuggestions] = useState([]);
     const [selected, setSelected] = useState(null);
     const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]); // Colombo
+    const [isSearching, setIsSearching] = useState(false);
 
-    // 1. Search Function (Nominatim API)
-    const handleSearch = async () => {
-        if (!query) return;
-        try {
-            const res = await axios.get(
-                `https://nominatim.openstreetmap.org/search?format=json&q=${query}+Sri+Lanka`
-            );
-            if (res.data && res.data.length > 0) {
-                const firstResult = res.data[0];
-                const lat = parseFloat(firstResult.lat);
-                const lon = parseFloat(firstResult.lon);
+    // Autocomplete effect (runs when query changes)
+    useEffect(() => {
+        // Wait 500ms before calling API
+        const delayTimer = setTimeout(async () => {
+            if (query.length > 2) {
+                setIsSearching(true);
+                try {
+                    // 1. Use Photon API limited to Sri Lanka map bounds
+                    const res = await axios.get(
+                        `https://photon.komoot.io/api/?q=${query}&bbox=79.5,5.9,81.9,9.9&limit=5`
+                    );
 
-                setSelected({ lat, lon, name: firstResult.display_name.split(",")[0] });
-                setMapCenter([lat, lon]); // Move map to search result
+                    // 2. Format Photon data to match our app
+                    const formattedData = res.data.features.map(f => ({
+                        lat: f.geometry.coordinates[1],
+                        lon: f.geometry.coordinates[0],
+                        display_name: [f.properties.name, f.properties.city, f.properties.state]
+                            .filter(Boolean).join(", ")
+                    }));
+
+                    setSuggestions(formattedData);
+                } catch (err) {
+                    console.error("Search error", err);
+                }
+                setIsSearching(false);
             } else {
-                alert("Location not found!");
+                setSuggestions([]); // Clear box
             }
-        } catch (err) {
-            console.error(err);
-            alert("Search failed.");
-        }
+        }, 500);
+
+        return () => clearTimeout(delayTimer);
+    }, [query]);
+
+    // Handle clicking a suggestion from the dropdown
+    const handleSelectSuggestion = (item) => {
+        const lat = parseFloat(item.lat);
+        const lon = parseFloat(item.lon);
+        const name = item.display_name.split(",")[0];
+
+        setSelected({ lat, lon, name });
+        setMapCenter([lat, lon]); // Move map
+        setQuery(name); // Put selected name in box
+        setSuggestions([]); // Hide dropdown
     };
 
-    // 2. Re-center map when searching
+    // Re-center map component
     const ChangeView = ({ center }) => {
         const map = useMapEvents({});
         map.setView(center, 13);
@@ -80,28 +101,53 @@ const LocationPicker = ({ onClose, onConfirm }) => {
             <div className="bg-white p-3 rounded shadow-lg" style={{ width: "90%", maxWidth: "600px" }}>
                 <h5 className="mb-3">📍 Pick a Location</h5>
 
-                {/* Search Bar */}
-                <div className="input-group mb-3">
+                {/* Search Bar with Autocomplete */}
+                <div style={{ position: "relative", marginBottom: "15px" }}>
                     <input
                         type="text"
                         className="form-control"
                         placeholder="Search city (e.g., Kandy)"
                         value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        onChange={(e) => {
+                            setQuery(e.target.value);
+                            // Clear selection if user starts typing again
+                            if (selected) setSelected(null);
+                        }}
                     />
-                    <button className="btn btn-primary" onClick={handleSearch}>Search</button>
+
+                    {isSearching && <small className="text-muted mt-1 d-block">Searching...</small>}
+
+                    {/* Dropdown Suggestions */}
+                    {suggestions.length > 0 && (
+                        <ul className="list-group" style={{
+                            position: "absolute", width: "100%", zIndex: 1000,
+                            maxHeight: "200px", overflowY: "auto", boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+                        }}>
+                            {suggestions.map((item, index) => (
+                                <li
+                                    key={index}
+                                    className="list-group-item list-group-item-action"
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => handleSelectSuggestion(item)}
+                                >
+                                    <strong>{item.display_name.split(",")[0]}</strong>
+                                    <br/>
+                                    <small className="text-muted">{item.display_name}</small>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
 
                 {/* The Map */}
-                <div style={{ height: "300px", border: "1px solid #ddd", marginBottom: "15px" }}>
+                <div style={{ height: "300px", border: "1px solid #ddd", marginBottom: "15px", position: "relative", zIndex: 1 }}>
                     <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
                         <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                            url="http://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                            attribution='&copy; Google Maps'
                         />
                         <ChangeView center={mapCenter} />
-                        <MapClickHandler onLocationSelect={setSelected} />
+                        <MapClickHandler onLocationSelect={setSelected} setQuery={setQuery} />
                         {selected && <Marker position={[selected.lat, selected.lon]} />}
                     </MapContainer>
                 </div>

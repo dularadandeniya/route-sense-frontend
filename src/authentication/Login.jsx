@@ -24,7 +24,7 @@ const Login = () => {
         <div className="auth-container">
             <div className="auth-card">
                 <h2>Welcome to RouteSense 📍</h2>
-                <p className="auth-subtitle">Please sign in to continue</p>
+                <p className="auth-subtitle">Please log in to continue</p>
 
                 {error && <div className="auth-alert">{error}</div>}
 
@@ -53,6 +53,16 @@ const Login = () => {
 
                     <button type="submit" className="btn-auth">Login</button>
                 </form>
+
+                <p className="auth-footer" style={{ marginTop: "15px", textAlign: "center" }}>
+                    Don't have an account?{" "}
+                    <span
+                        style={{ color: "#007bff", cursor: "pointer", fontWeight: "bold" }}
+                        onClick={() => navigate("/register")}
+                    >
+            Sign Up
+          </span>
+                </p>
             </div>
         </div>
     );
