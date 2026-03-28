@@ -3,7 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Login from "./authentication/Login";
 import AuthService from "./authentication/AuthService";
 import RouteBuilder from "./components/RouteBuilder";
-import Register from "./authentication/Register.jsx"; // Your main map component
+import Register from "./authentication/Register.jsx";
+import ScheduleTrip from "./components/ScheduleTrip.jsx"; // Your main map component
 
 // 🔒 Guard Component: Only allows access if logged in
 const PrivateRoute = ({ children }) => {
@@ -26,6 +27,15 @@ function App() {
                     element={
                         <PrivateRoute>
                             <RouteBuilder />
+                        </PrivateRoute>
+                    }
+                />
+
+                <Route
+                    path="/schedules"
+                    element={
+                        <PrivateRoute>
+                            <ScheduleTrip />
                         </PrivateRoute>
                     }
                 />
