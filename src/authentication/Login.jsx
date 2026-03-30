@@ -13,8 +13,7 @@ const Login = () => {
         e.preventDefault();
         try {
             await AuthService.login(username, password);
-            navigate("/dashboard"); // 🔀 Redirect to Dashboard
-            window.location.reload(); // Refresh to update state
+            navigate("/dashboard");
         } catch (err) {
             setError("❌ Invalid username or password");
         }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import {
     MapContainer,
     TileLayer,
@@ -11,6 +10,8 @@ import {
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import LocationPicker from "./LocationPicker";
+import api from "../axiosInstance.js";
+import AuthService from "../authentication/AuthService.js";
 
 // ---------- Icons ----------
 const createIcon = (color) => {
@@ -26,6 +27,28 @@ const createIcon = (color) => {
 
 const GreenIcon = createIcon("green");
 const RedIcon = createIcon("red");
+
+// Custom Numbered Icon for Stops
+const createNumberIcon = (num) =>
+    L.divIcon({
+        className: "custom-number-icon",
+        html: `
+      <div style="
+        background-color: #ffc107; 
+        width: 30px; height: 30px; 
+        border-radius: 50%; 
+        border: 2px solid white;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+        display: flex; justify-content: center; align-items: center; 
+        font-weight: bold; color: #333; font-size: 14px;
+      ">
+        ${num}
+      </div>
+    `,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        popupAnchor: [0, -20]
+    });
 
 // ---------- Map helpers ----------
 const FitBounds = ({ routes }) => {
@@ -99,13 +122,19 @@ const ScheduleTrip = () => {
     const [selectedScheduleMeta, setSelectedScheduleMeta] = useState(null);
     const [optimizing, setOptimizing] = useState(false);
 
+    // --- NEW EMAIL MODAL STATES ---
+    const [showEmailModal, setShowEmailModal] = useState(false);
+    const [driverEmail, setDriverEmail] = useState("");
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [emailSuccess, setEmailSuccess] = useState(false);
+
     useEffect(() => {
         loadSchedules();
     }, []);
 
     const loadSchedules = async () => {
         try {
-            const res = await axios.get("http://localhost:8080/api/schedules");
+            const res = await api.get("/api/schedules");
             setSchedules(res.data || []);
         } catch (e) {
             console.error(e);
@@ -173,7 +202,7 @@ const ScheduleTrip = () => {
         };
 
         try {
-            await axios.post("http://localhost:8080/api/schedules", payload);
+            await api.post("/api/schedules", payload);
             setMessage("Scheduled trip saved successfully.");
             loadSchedules();
 
@@ -197,9 +226,7 @@ const ScheduleTrip = () => {
         try {
             setOptimizing(true);
 
-            const res = await axios.post(
-                `http://localhost:8080/api/schedules/${schedule.id}/optimize`
-            );
+            const res = await api.post(`/api/schedules/${schedule.id}/optimize`);
 
             const routes = res.data || [];
             setOptimizedRoutes(routes);
@@ -228,6 +255,45 @@ const ScheduleTrip = () => {
         );
     };
 
+    // --- REAL API EMAIL FUNCTION ---
+    const handleRealEmailSend = async () => {
+        if (!driverEmail.includes("@")) {
+            alert("Please enter a valid email address.");
+            return;
+        }
+
+        setIsSendingEmail(true);
+
+        const stopsList = selectedRoute.stop_order ? selectedRoute.stop_order.join(' ➔ ') : 'Direct Route';
+        const timeMins = Math.round(selectedRoute.time_seconds / 60);
+
+        const payload = {
+            driverEmail: driverEmail,
+            mode: selectedRoute.mode,
+            time: timeMins.toString(),
+            stops: stopsList
+        };
+
+        try {
+            // Send the real request to your Spring Boot backend
+            await api.post("/api/email/send-route", payload);
+
+            setIsSendingEmail(false);
+            setEmailSuccess(true);
+
+            // Close the modal automatically
+            setTimeout(() => {
+                setShowEmailModal(false);
+                setEmailSuccess(false);
+                setDriverEmail("");
+            }, 2000);
+        } catch (error) {
+            console.error("Email failed:", error);
+            alert("Failed to send email. Please check the Spring Boot console for errors.");
+            setIsSendingEmail(false);
+        }
+    };
+
     const selectedRoutePositions =
         selectedRoute?.route_sequence?.map((p) => [
             parseFloat(p.lat),
@@ -242,8 +308,63 @@ const ScheduleTrip = () => {
             ? selectedRoutePositions[selectedRoutePositions.length - 1]
             : null;
 
+    // --- EMAIL MODAL UI COMPONENT ---
+    const EmailModal = () => {
+        if (!showEmailModal) return null;
+
+        return (
+            <div style={{
+                position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+                backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999,
+                display: "flex", justifyContent: "center", alignItems: "center"
+            }}>
+                <div className="card shadow-lg border-0" style={{ width: "400px", borderRadius: "15px" }}>
+                    <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center border-0" style={{ borderTopLeftRadius: "15px", borderTopRightRadius: "15px" }}>
+                        <h6 className="mb-0 fw-bold">✉️ Dispatch Route to Driver</h6>
+                        <button className="btn-close btn-close-white" onClick={() => setShowEmailModal(false)} disabled={isSendingEmail}></button>
+                    </div>
+                    <div className="card-body p-4 text-center">
+                        {emailSuccess ? (
+                            <div className="py-3">
+                                <div className="text-success mb-2" style={{ fontSize: "40px" }}>✅</div>
+                                <h5 className="fw-bold text-success">Route Dispatched!</h5>
+                                <p className="text-muted small">The driver has received the optimal sequence and live traffic data.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-muted small mb-3 text-start">
+                                    Send the optimized <strong>{selectedRoute?.mode}</strong> sequence directly to your driver's device.
+                                </p>
+                                <div className="mb-4 text-start">
+                                    <label className="fw-bold small mb-1">Driver Email Address</label>
+                                    <input
+                                        type="email"
+                                        className="form-control bg-light"
+                                        placeholder="driver@logistics.com"
+                                        value={driverEmail}
+                                        onChange={(e) => setDriverEmail(e.target.value)}
+                                        disabled={isSendingEmail}
+                                    />
+                                </div>
+                                <button
+                                    className="btn btn-primary w-100 fw-bold py-2"
+                                    onClick={handleRealEmailSend}
+                                    disabled={isSendingEmail || !driverEmail}
+                                >
+                                    {isSendingEmail ? "📡 Dispatching via SMTP..." : "Send Route Details"}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="container-fluid py-4">
+            <EmailModal />
+
             {pickerState.isOpen && (
                 <LocationPicker
                     onClose={() => setPickerState({ isOpen: false, activeField: null })}
@@ -256,6 +377,16 @@ const ScheduleTrip = () => {
                 <div className="col-lg-4">
                     <div className="card p-3 mb-4">
                         <h3 className="mb-3">📅 Scheduled Trip Planning</h3>
+
+                        <div className="d-flex justify-content-between mb-3">
+                            <a href="/dashboard" className="btn btn-sm btn-outline-primary">Route Builder</a>
+                            <button
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => { AuthService.logout(); window.location.href = "/login"; }}
+                            >
+                                Logout
+                            </button>
+                        </div>
 
                         <div className="mb-2">
                             <label>Trip Name</label>
@@ -400,7 +531,7 @@ const ScheduleTrip = () => {
                                     <strong>{s.tripName || `Trip #${s.id}`}</strong>
                                     <br />
                                     <small>
-                                        {s.departureTime} | {s.status}
+                                        {new Date(s.departureTime).toLocaleString()} | {s.status}
                                     </small>
                                 </div>
                                 <button
@@ -414,68 +545,64 @@ const ScheduleTrip = () => {
                         ))}
                     </div>
 
+                    {/* POLISHED RESULTS CARD */}
                     {selectedRoute && (
-                        <div className="card shadow-sm border-primary">
-                            <div className="card-header bg-primary text-white fw-bold">
-                                📋 Scheduled Route Details
-                            </div>
-                            <div className="card-body">
-                                {selectedScheduleMeta && (
-                                    <p className="small text-muted mb-2">
-                                        <strong>{selectedScheduleMeta.tripName || "Scheduled Trip"}</strong>
-                                        <br />
-                                        {selectedScheduleMeta.departureTime}
-                                    </p>
+                        <div className="card border-0 shadow-lg mt-4" style={{ borderRadius: "15px", overflow: "hidden" }}>
+                            <div className="card-header bg-primary text-white p-3 border-0 d-flex justify-content-between align-items-center">
+                                <span className="fw-bold mb-0">📋 Optimized Route Ready</span>
+                                {selectedRoute.avg_traffic_factor && (
+                                    <span className="badge bg-light text-primary">
+                                        Traffic: {Number(selectedRoute.avg_traffic_factor).toFixed(2)}x
+                                    </span>
                                 )}
-
-                                <h5 className="card-title">{selectedRoute.mode}</h5>
-                                <p className="card-text small text-muted">
+                            </div>
+                            <div className="card-body p-4 bg-light">
+                                <h5 className="card-title fw-bold text-dark mb-2">{selectedRoute.mode}</h5>
+                                <p className="card-text small text-muted mb-4 border-start border-3 border-primary ps-2">
                                     {selectedRoute.explanation}
                                 </p>
-                                <hr />
 
-                                <div className="d-flex justify-content-between text-center mb-3">
-                                    <div>
-                                        <small className="text-muted">Time</small>
-                                        <br />
-                                        <strong>
-                                            {(selectedRoute.time_seconds / 60).toFixed(0)} min
-                                        </strong>
+                                <div className="row text-center mb-4 g-2">
+                                    <div className="col-4">
+                                        <div className="p-2 bg-white rounded shadow-sm border">
+                                            <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize:"10px"}}>Est. Time</small>
+                                            <strong className="fs-5 text-primary">{(selectedRoute.time_seconds / 60).toFixed(0)} <span className="fs-6">min</span></strong>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <small className="text-muted">CO2</small>
-                                        <br />
-                                        <strong>
-                                            {selectedRoute.co2_emissions.toFixed(2)} kg
-                                        </strong>
+                                    <div className="col-4">
+                                        <div className="p-2 bg-white rounded shadow-sm border">
+                                            <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize:"10px"}}>CO2 Impact</small>
+                                            <strong className="fs-5 text-success">{selectedRoute.co2_emissions.toFixed(1)} <span className="fs-6">kg</span></strong>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <small className="text-muted">Cost</small>
-                                        <br />
-                                        <strong>
-                                            Rs. {selectedRoute.cost_currency.toFixed(0)}
-                                        </strong>
+                                    <div className="col-4">
+                                        <div className="p-2 bg-white rounded shadow-sm border">
+                                            <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize:"10px"}}>Fuel Cost</small>
+                                            <strong className="fs-5 text-danger"><span className="fs-6">Rs.</span> {selectedRoute.cost_currency.toFixed(0)}</strong>
+                                        </div>
                                     </div>
-                                </div>
-
-                                <div className="mb-3">
-                                    <small className="text-muted">Predicted Traffic Factor</small>
-                                    <br />
-                                    <strong>
-                                        {selectedRoute.avg_traffic_factor
-                                            ? `${Number(selectedRoute.avg_traffic_factor).toFixed(2)}x`
-                                            : "N/A"}
-                                    </strong>
                                 </div>
 
                                 {selectedRoute.stop_order?.length > 0 && (
-                                    <div>
-                                        <small className="text-muted">Stop Order</small>
-                                        <div className="mt-1">
-                                            {selectedRoute.stop_order.join(" → ")}
+                                    <div className="mb-4 p-3 bg-white rounded shadow-sm border">
+                                        <small className="text-muted fw-bold text-uppercase mb-2 d-block" style={{fontSize:"10px"}}>Optimal Stop Sequence</small>
+                                        <div className="d-flex flex-wrap gap-2 align-items-center">
+                                            {selectedRoute.stop_order.map((stop, idx) => (
+                                                <React.Fragment key={idx}>
+                                                    <span className="badge bg-secondary text-white p-2">{idx + 1}. {stop}</span>
+                                                    {idx < selectedRoute.stop_order.length - 1 && <span className="text-muted">➔</span>}
+                                                </React.Fragment>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
+
+                                <button
+                                    className="btn btn-success w-100 py-2 fw-bold shadow-sm"
+                                    onClick={() => setShowEmailModal(true)}
+                                >
+                                    ✉️ Email to Driver
+                                </button>
                             </div>
                         </div>
                     )}
@@ -484,13 +611,19 @@ const ScheduleTrip = () => {
                 {/* Right column */}
                 <div className="col-lg-8">
                     <div
-                        className="card"
-                        style={{ height: "80vh", overflow: "hidden", position: "relative" }}
+                        className="card shadow-lg border-0"
+                        style={{
+                            position: "sticky",
+                            top: "1.5rem",
+                            height: "calc(100vh - 3rem)",
+                            overflow: "hidden",
+                            borderRadius: "15px"
+                        }}
                     >
                         <MapContainer
                             center={[6.9271, 79.8612]}
                             zoom={8}
-                            style={{ height: "100%", width: "100%" }}
+                            style={{ height: "100%", width: "100%", zIndex: 1 }}
                         >
                             <TileLayer
                                 url="http://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
@@ -517,6 +650,31 @@ const ScheduleTrip = () => {
                                     </Popup>
                                 </Marker>
                             )}
+
+                            {/* DRAW NUMBERED STOPS ON MAP */}
+                            {form.stops.map((s, i) => {
+                                if (s.location) {
+                                    // Find optimized order index if available
+                                    let displayNum = i + 1;
+                                    if (selectedRoute && selectedRoute.stop_order) {
+                                        const optIndex = selectedRoute.stop_order.indexOf(s.location.name);
+                                        // -1 because stop_order[0] is start point
+                                        if (optIndex > 0 && optIndex < selectedRoute.stop_order.length - 1) {
+                                            displayNum = optIndex;
+                                        }
+                                    }
+                                    return (
+                                        <Marker
+                                            key={s.id}
+                                            position={[s.location.lat, s.location.lon]}
+                                            icon={createNumberIcon(displayNum)}
+                                        >
+                                            <Popup><b>Stop {displayNum}</b>: {s.location.name}</Popup>
+                                        </Marker>
+                                    );
+                                }
+                                return null;
+                            })}
 
                             {optimizedRoutes.map((route, index) => {
                                 const positions = (route.route_sequence || []).map((p) => [
