@@ -12,6 +12,7 @@ import L from "leaflet";
 import LocationPicker from "./LocationPicker";
 import api from "../axiosInstance.js";
 import AuthService from "../authentication/AuthService.js";
+import {Link} from "react-router-dom";
 
 // ---------- Icons ----------
 const createIcon = (color) => {
@@ -379,7 +380,7 @@ const ScheduleTrip = () => {
                         <h3 className="mb-3">📅 Scheduled Trip Planning</h3>
 
                         <div className="d-flex justify-content-between mb-3">
-                            <a href="/dashboard" className="btn btn-sm btn-outline-primary">Route Builder</a>
+                            <Link to="/dashboard" className="btn btn-sm btn-outline-primary">Route Builder</Link>
                             <button
                                 className="btn btn-sm btn-outline-secondary"
                                 onClick={() => { AuthService.logout(); window.location.href = "/login"; }}

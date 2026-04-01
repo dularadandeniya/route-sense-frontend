@@ -13,6 +13,7 @@ import RouteAnimator from "./RouteAnimator";
 import LocationPicker from "./LocationPicker";
 import api from "../axiosInstance.js";
 import AuthService from "../authentication/AuthService.js";
+import {Link} from "react-router-dom";
 
 // --- 1. ICON SETUP ---
 const createIcon = (color) => {
@@ -313,7 +314,7 @@ const RouteBuilder = () => {
                         <div className="d-flex justify-content-between align-items-center mb-4">
                             <h4 className="text-primary mb-0">🚛 RouteSense</h4>
                             <div className="d-flex gap-2">
-                                <a href="/schedules" className="btn btn-sm btn-outline-primary">Schedules</a>
+                                <Link to="/schedules" className="btn btn-sm btn-outline-primary">Schedules</Link>
                                 <button
                                     className="btn btn-sm btn-outline-secondary"
                                     onClick={() => { AuthService.logout(); window.location.href = "/login"; }}
