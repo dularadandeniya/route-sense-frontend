@@ -256,8 +256,15 @@ const ScheduleTrip = () => {
         );
     };
 
-    // --- REAL API EMAIL FUNCTION ---
-    const handleRealEmailSend = async () => {
+    const formatTime = (seconds) => {
+        const totalMinutes = Math.round(seconds / 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
+
+    //  EMAIL FUNCTION
+    const handleEmailSend = async () => {
         if (!driverEmail.includes("@")) {
             alert("Please enter a valid email address.");
             return;
@@ -266,7 +273,7 @@ const ScheduleTrip = () => {
         setIsSendingEmail(true);
 
         const stopsList = selectedRoute.stop_order ? selectedRoute.stop_order.join(' ➔ ') : 'Direct Route';
-        const timeMins = Math.round(selectedRoute.time_seconds / 60);
+        const timeMins = formatTime(selectedRoute.time_seconds);
 
         const payload = {
             driverEmail: driverEmail,
@@ -349,7 +356,7 @@ const ScheduleTrip = () => {
                                 </div>
                                 <button
                                     className="btn btn-primary w-100 fw-bold py-2"
-                                    onClick={handleRealEmailSend}
+                                    onClick={handleEmailSend}
                                     disabled={isSendingEmail || !driverEmail}
                                 >
                                     {isSendingEmail ? "📡 Dispatching via SMTP..." : "Send Route Details"}
@@ -567,7 +574,7 @@ const ScheduleTrip = () => {
                                     <div className="col-4">
                                         <div className="p-2 bg-white rounded shadow-sm border">
                                             <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize:"10px"}}>Est. Time</small>
-                                            <strong className="fs-5 text-primary">{(selectedRoute.time_seconds / 60).toFixed(0)} <span className="fs-6">min</span></strong>
+                                            <strong className="fs-5 text-primary">{formatTime(selectedRoute.time_seconds)} <span className="fs-6">min</span></strong>
                                         </div>
                                     </div>
                                     <div className="col-4">
