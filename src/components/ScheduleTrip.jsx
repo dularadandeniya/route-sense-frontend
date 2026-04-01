@@ -622,7 +622,7 @@ const ScheduleTrip = () => {
                     >
                         <MapContainer
                             center={[6.9271, 79.8612]}
-                            zoom={8}
+                            zoom={13}
                             style={{ height: "100%", width: "100%", zIndex: 1 }}
                         >
                             <TileLayer
