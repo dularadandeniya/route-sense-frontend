@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthService from "./AuthService";
 import "./Auth.css"; // Import the styles
+import { MapPin } from "lucide-react";
 
 const Login = () => {
     const [username, setUsername] = useState("");
@@ -15,15 +16,18 @@ const Login = () => {
             await AuthService.login(username, password);
             navigate("/dashboard");
         } catch (err) {
-            setError("❌ Invalid username or password");
+            setError("Invalid username or password");
         }
     };
 
     return (
         <div className="auth-container">
             <div className="auth-card">
-                <h2>Welcome to RouteSense 📍</h2>
-                <p className="auth-subtitle">Please log in to continue</p>
+                <div className="text-center mb-4">
+                    <MapPin size={36} className="text-primary mb-2" />
+                    <h3 className="fw-bold mb-1">Welcome to RouteSense</h3>
+                    <p className="text-muted small">Please log in to continue</p>
+                </div>
 
                 {error && <div className="auth-alert">{error}</div>}
 

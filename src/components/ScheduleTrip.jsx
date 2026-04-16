@@ -8,48 +8,18 @@ import {
     useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import LocationPicker from "./LocationPicker";
 import api from "../axiosInstance.js";
 import AuthService from "../authentication/AuthService.js";
 import {Link} from "react-router-dom";
+import * as XLSX from "xlsx";
+import { GreenPin, RedPin, createNumberIcon } from "./MapIcons.js";
+import {
+    Calendar, Package, MapPin, X,
+    Mail, CheckCircle2, Loader2, Send,
+    ClipboardList, ArrowRight, Plus, Download, LogOut
+} from "lucide-react";
 
-// ---------- Icons ----------
-const createIcon = (color) => {
-    return new L.Icon({
-        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-    });
-};
-
-const GreenIcon = createIcon("green");
-const RedIcon = createIcon("red");
-
-// Custom Numbered Icon for Stops
-const createNumberIcon = (num) =>
-    L.divIcon({
-        className: "custom-number-icon",
-        html: `
-      <div style="
-        background-color: #ffc107; 
-        width: 30px; height: 30px; 
-        border-radius: 50%; 
-        border: 2px solid white;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-        display: flex; justify-content: center; align-items: center; 
-        font-weight: bold; color: #333; font-size: 14px;
-      ">
-        ${num}
-      </div>
-    `,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        popupAnchor: [0, -20]
-    });
 
 // ---------- Map helpers ----------
 const FitBounds = ({ routes }) => {
@@ -121,7 +91,8 @@ const ScheduleTrip = () => {
     const [optimizedRoutes, setOptimizedRoutes] = useState([]);
     const [selectedRoute, setSelectedRoute] = useState(null);
     const [selectedScheduleMeta, setSelectedScheduleMeta] = useState(null);
-    const [optimizing, setOptimizing] = useState(false);
+    const [optimizingId, setOptimizingId] = useState(null);
+    const [selectedIds, setSelectedIds] = useState(new Set());
 
     // --- NEW EMAIL MODAL STATES ---
     const [showEmailModal, setShowEmailModal] = useState(false);
@@ -225,17 +196,14 @@ const ScheduleTrip = () => {
 
     const handleOptimize = async (schedule) => {
         try {
-            setOptimizing(true);
+            setOptimizingId(schedule.id);  // ← track specific ID
 
             const res = await api.post(`/api/schedules/${schedule.id}/optimize`);
-
             const routes = res.data || [];
             setOptimizedRoutes(routes);
             setSelectedRoute(routes.length > 0 ? routes[0] : null);
             setSelectedScheduleMeta(schedule);
             setMessage("Scheduled trip optimized successfully.");
-
-            console.log("Scheduled optimization results", routes);
         } catch (e) {
             console.error(e);
             setMessage("Optimization failed.");
@@ -243,7 +211,7 @@ const ScheduleTrip = () => {
             setSelectedRoute(null);
             setSelectedScheduleMeta(null);
         } finally {
-            setOptimizing(false);
+            setOptimizingId(null);  // ← clear when done
         }
     };
 
@@ -272,24 +240,29 @@ const ScheduleTrip = () => {
 
         setIsSendingEmail(true);
 
-        const stopsList = selectedRoute.stop_order ? selectedRoute.stop_order.join(' ➔ ') : 'Direct Route';
+        const stopsList = selectedRoute.stop_order
+            ? selectedRoute.stop_order.join(" → ")
+            : "Direct Route";
         const timeMins = formatTime(selectedRoute.time_seconds);
 
+        // Build Google Maps URL from route start/end positions
+        const mapsUrl = routeStartPosition && routeEndPosition
+            ? `https://www.google.com/maps/dir/?api=1&origin=${routeStartPosition[0]},${routeStartPosition[1]}&destination=${routeEndPosition[0]},${routeEndPosition[1]}&travelmode=driving`
+            : "";
+
         const payload = {
-            driverEmail: driverEmail,
-            mode: selectedRoute.mode,
-            time: timeMins.toString(),
-            stops: stopsList
+            driverEmail:   driverEmail,
+            tripName:      selectedScheduleMeta?.tripName || "Scheduled Trip",
+            mode:          selectedRoute.mode,
+            time:          timeMins.toString(),
+            stops:         stopsList,
+            googleMapsUrl: mapsUrl,
         };
 
         try {
-            // Send the real request to your Spring Boot backend
             await api.post("/api/email/send-route", payload);
-
             setIsSendingEmail(false);
             setEmailSuccess(true);
-
-            // Close the modal automatically
             setTimeout(() => {
                 setShowEmailModal(false);
                 setEmailSuccess(false);
@@ -297,7 +270,7 @@ const ScheduleTrip = () => {
             }, 2000);
         } catch (error) {
             console.error("Email failed:", error);
-            alert("Failed to send email. Please check the Spring Boot console for errors.");
+            alert("Failed to send email.");
             setIsSendingEmail(false);
         }
     };
@@ -316,62 +289,129 @@ const ScheduleTrip = () => {
             ? selectedRoutePositions[selectedRoutePositions.length - 1]
             : null;
 
-    // --- EMAIL MODAL UI COMPONENT ---
-    const EmailModal = () => {
-        if (!showEmailModal) return null;
 
-        return (
-            <div style={{
-                position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-                backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999,
-                display: "flex", justifyContent: "center", alignItems: "center"
-            }}>
-                <div className="card shadow-lg border-0" style={{ width: "400px", borderRadius: "15px" }}>
-                    <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center border-0" style={{ borderTopLeftRadius: "15px", borderTopRightRadius: "15px" }}>
-                        <h6 className="mb-0 fw-bold">✉️ Dispatch Route to Driver</h6>
-                        <button className="btn-close btn-close-white" onClick={() => setShowEmailModal(false)} disabled={isSendingEmail}></button>
-                    </div>
-                    <div className="card-body p-4 text-center">
-                        {emailSuccess ? (
-                            <div className="py-3">
-                                <div className="text-success mb-2" style={{ fontSize: "40px" }}>✅</div>
-                                <h5 className="fw-bold text-success">Route Dispatched!</h5>
-                                <p className="text-muted small">The driver has received the optimal sequence and live traffic data.</p>
-                            </div>
-                        ) : (
-                            <>
-                                <p className="text-muted small mb-3 text-start">
-                                    Send the optimized <strong>{selectedRoute?.mode}</strong> sequence directly to your driver's device.
-                                </p>
-                                <div className="mb-4 text-start">
-                                    <label className="fw-bold small mb-1">Driver Email Address</label>
-                                    <input
-                                        type="email"
-                                        className="form-control bg-light"
-                                        placeholder="driver@logistics.com"
-                                        value={driverEmail}
-                                        onChange={(e) => setDriverEmail(e.target.value)}
-                                        disabled={isSendingEmail}
-                                    />
-                                </div>
-                                <button
-                                    className="btn btn-primary w-100 fw-bold py-2"
-                                    onClick={handleEmailSend}
-                                    disabled={isSendingEmail || !driverEmail}
-                                >
-                                    {isSendingEmail ? "📡 Dispatching via SMTP..." : "Send Route Details"}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
+    const handleExportSelected = async () => {
+        if (selectedIds.size === 0) return;
+
+        const headers = [
+            "tripName","startName","startLat","startLon",
+            "endName","endLat","endLon",
+            "departureDate","departureTime","vehicleType","weightKg",
+            "stop1Name","stop1Lat","stop1Lon",
+            "stop2Name","stop2Lat","stop2Lon",
+        ];
+
+        const rows = [];
+        for (const id of selectedIds) {
+            try {
+                const res  = await api.get(`/api/schedules/${id}`);
+                const t    = res.data;
+                const dt   = new Date(t.departureTime);
+                const date = dt.toISOString().split("T")[0];
+                const time = dt.toTimeString().slice(0, 5);
+
+                const stops = t.stops || [];
+                rows.push([
+                    t.tripName,
+                    t.startName, t.startLat, t.startLon,
+                    t.endName,   t.endLat,   t.endLon,
+                    date, time,
+                    t.vehicleType, t.weightKg,
+                    stops[0]?.name || "", stops[0]?.lat || "", stops[0]?.lon || "",
+                    stops[1]?.name || "", stops[1]?.lat || "", stops[1]?.lon || "",
+                ]);
+            } catch (e) {
+                console.error(`Failed to fetch schedule ${id}`, e);
+            }
+        }
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.aoa_to_sheet([headers, ...rows]),
+            "Schedules"
         );
+        XLSX.writeFile(wb, "selected_schedules.xlsx");
+        setSelectedIds(new Set());
+    };
+
+    const toggleSelect = (id) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === schedules.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(schedules.map((s) => s.id)));
+        }
     };
 
     return (
         <div className="container-fluid py-4">
-            <EmailModal />
+
+            {/* Email Modal — inline, not a sub-component */}
+            {showEmailModal && (
+                <div style={{
+                    position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+                    backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9999,
+                    display: "flex", justifyContent: "center", alignItems: "center"
+                }}>
+                    <div className="card shadow-lg border-0" style={{ width: "400px", borderRadius: "15px" }}>
+                        <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center border-0"
+                             style={{ borderTopLeftRadius: "15px", borderTopRightRadius: "15px" }}>
+                            <h6 className="mb-0 fw-bold d-flex align-items-center gap-2">
+                                <Mail size={16} /> Dispatch Route to Driver
+                            </h6>
+                            <button className="btn btn-sm btn-dark d-flex align-items-center"
+                                    onClick={() => setShowEmailModal(false)} disabled={isSendingEmail}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="card-body p-4 text-center">
+                            {emailSuccess ? (
+                                <div className="py-3">
+                                    <CheckCircle2 size={48} className="text-success mb-2" />
+                                    <h5 className="fw-bold text-success">Route Dispatched!</h5>
+                                    <p className="text-muted small">The driver has received the optimal sequence and live traffic data.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-muted small mb-3 text-start">
+                                        Send the optimized <strong>{selectedRoute?.mode}</strong> sequence directly to your driver's device.
+                                    </p>
+                                    <div className="mb-4 text-start">
+                                        <label className="fw-bold small mb-1">Driver Email Address</label>
+                                        <input
+                                            type="email"
+                                            className="form-control bg-light"
+                                            placeholder="driver@logistics.com"
+                                            value={driverEmail}
+                                            onChange={(e) => setDriverEmail(e.target.value)}
+                                            disabled={isSendingEmail}
+                                        />
+                                    </div>
+                                    <button
+                                        className="btn btn-primary w-100 fw-bold py-2 d-flex align-items-center justify-content-center gap-2"
+                                        onClick={handleEmailSend}
+                                        disabled={isSendingEmail || !driverEmail}
+                                    >
+                                        {isSendingEmail ? (
+                                            <><Loader2 size={14} className="spin" /> Dispatching...</>
+                                        ) : (
+                                            <><Send size={14} /> Send Route Details</>
+                                        )}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {pickerState.isOpen && (
                 <LocationPicker
@@ -384,15 +424,20 @@ const ScheduleTrip = () => {
                 {/* Left column */}
                 <div className="col-lg-4">
                     <div className="card p-3 mb-4">
-                        <h3 className="mb-3">📅 Scheduled Trip Planning</h3>
+                        <h3 className="mb-3 d-flex align-items-center gap-2">
+                            <Calendar size={20} className="text-primary" /> Scheduled Trip Planning
+                        </h3>
 
                         <div className="d-flex justify-content-between mb-3">
                             <Link to="/dashboard" className="btn btn-sm btn-outline-primary">Route Builder</Link>
+                            <Link to="/bulk-schedule" className="btn btn-sm btn-outline-success d-flex align-items-center gap-1">
+                                <Package size={14} /> Bulk Schedule
+                            </Link>
                             <button
-                                className="btn btn-sm btn-outline-secondary"
+                                className="btn btn-sm btn-outline-danger"
                                 onClick={() => { AuthService.logout(); window.location.href = "/login"; }}
                             >
-                                Logout
+                                <LogOut size={14} /> Logout
                             </button>
                         </div>
 
@@ -411,11 +456,8 @@ const ScheduleTrip = () => {
                             <label>Start</label>
                             <div className="input-group">
                                 <input className="form-control" readOnly value={form.start?.name || ""} />
-                                <button
-                                    className="btn btn-outline-success"
-                                    onClick={() => openPicker("start")}
-                                >
-                                    📍
+                                <button className="btn btn-outline-success d-flex align-items-center" onClick={() => openPicker("start")}>
+                                    <MapPin size={15} className="text-success" />
                                 </button>
                             </div>
                         </div>
@@ -424,11 +466,9 @@ const ScheduleTrip = () => {
                             <label>End</label>
                             <div className="input-group">
                                 <input className="form-control" readOnly value={form.end?.name || ""} />
-                                <button
-                                    className="btn btn-outline-danger"
-                                    onClick={() => openPicker("end")}
-                                >
-                                    📍
+                                <button className="btn btn-danger d-flex align-items-center"
+                                        onClick={() => openPicker("end")}>
+                                    <MapPin size={15} />
                                 </button>
                             </div>
                         </div>
@@ -436,11 +476,9 @@ const ScheduleTrip = () => {
                         <div className="mb-2">
                             <div className="d-flex justify-content-between">
                                 <label>Stops</label>
-                                <button
-                                    className="btn btn-sm btn-outline-secondary"
-                                    onClick={addStop}
-                                >
-                                    + Add
+                                <button className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                                        onClick={addStop}>
+                                    <Plus size={13} /> Add
                                 </button>
                             </div>
 
@@ -452,17 +490,13 @@ const ScheduleTrip = () => {
                                         readOnly
                                         value={s.location?.name || ""}
                                     />
-                                    <button
-                                        className="btn btn-outline-secondary"
-                                        onClick={() => openPicker(`stop-${s.id}`)}
-                                    >
-                                        📍
+                                    <button className="btn btn-outline-secondary d-flex align-items-center"
+                                            onClick={() => openPicker(`stop-${s.id}`)}>
+                                        <MapPin size={15} />
                                     </button>
-                                    <button
-                                        className="btn btn-danger"
-                                        onClick={() => removeStop(s.id)}
-                                    >
-                                        x
+                                    <button className="btn btn-danger d-flex align-items-center"
+                                            onClick={() => removeStop(s.id)}>
+                                        <X size={13} />
                                     </button>
                                 </div>
                             ))}
@@ -529,35 +563,87 @@ const ScheduleTrip = () => {
                     </div>
 
                     <div className="card p-3 mb-4">
-                        <h5>Saved Schedules</h5>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h5 className="mb-0">Saved Schedules</h5>
+                            <div className="d-flex gap-2 align-items-center">
+                                {schedules.length > 0 && (
+                                    <label className="d-flex align-items-center gap-1 small text-muted mb-0"
+                                           style={{ cursor: "pointer" }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.size === schedules.length && schedules.length > 0}
+                                            onChange={toggleSelectAll}
+                                        />
+                                        All
+                                    </label>
+                                )}
+                                <button
+                                    className="btn btn-sm btn-success"
+                                    onClick={handleExportSelected}
+                                    disabled={selectedIds.size === 0}
+                                    title="Export selected as Excel bulk template"
+                                >
+                                    <Download size={13} /> Export ({selectedIds.size})
+                                </button>
+                                <Link to="/bulk-schedule" className="btn btn-sm btn-outline-warning d-flex align-items-center gap-1">
+                                    <Package size={13} /> Bulk Schedule
+                                </Link>
+                            </div>
+                        </div>
+
                         {schedules.map((s) => (
                             <div
                                 key={s.id}
                                 className="border rounded p-2 mb-2 d-flex justify-content-between align-items-center"
+                                style={{
+                                    background: selectedIds.has(s.id) ? "#f0f7ff" : "white",
+                                    borderColor: selectedIds.has(s.id) ? "#0d6efd" : undefined,
+                                    transition: "background 0.15s",
+                                }}
                             >
-                                <div>
+                                {/* Checkbox */}
+                                <input
+                                    type="checkbox"
+                                    className="form-check-input me-2 flex-shrink-0"
+                                    checked={selectedIds.has(s.id)}
+                                    onChange={() => toggleSelect(s.id)}
+                                    style={{ cursor: "pointer", marginTop: 0 }}
+                                />
+
+                                {/* Trip info */}
+                                <div className="flex-grow-1" style={{ cursor: "pointer" }}
+                                     onClick={() => toggleSelect(s.id)}>
                                     <strong>{s.tripName || `Trip #${s.id}`}</strong>
                                     <br />
-                                    <small>
+                                    <small className="text-muted">
                                         {new Date(s.departureTime).toLocaleString()} | {s.status}
                                     </small>
                                 </div>
+
+                                {/* Optimize button */}
                                 <button
-                                    className="btn btn-warning btn-sm"
-                                    onClick={() => handleOptimize(s)}
-                                    disabled={optimizing}
+                                    className="btn btn-warning btn-sm flex-shrink-0 d-flex align-items-center gap-1"
+                                    onClick={(e) => { e.stopPropagation(); handleOptimize(s); }}
+                                    disabled={optimizingId === s.id}
                                 >
-                                    {optimizing ? "..." : "Optimize"}
+                                    {optimizingId === s.id ? (
+                                        <><span className="spinner-border spinner-border-sm" /> Optimizing...</>
+                                    ) : "Optimize"}
                                 </button>
                             </div>
                         ))}
+
+                        {schedules.length === 0 && (
+                            <p className="text-muted small mb-0">No saved schedules yet.</p>
+                        )}
                     </div>
 
                     {/* POLISHED RESULTS CARD */}
                     {selectedRoute && (
                         <div className="card border-0 shadow-lg mt-4" style={{ borderRadius: "15px", overflow: "hidden" }}>
                             <div className="card-header bg-primary text-white p-3 border-0 d-flex justify-content-between align-items-center">
-                                <span className="fw-bold mb-0">📋 Optimized Route Ready</span>
+                                <span className="fw-bold mb-0 d-flex align-items-center gap-2">
+                                    <ClipboardList size={16} /> Optimized Route Ready </span>
                                 {selectedRoute.avg_traffic_factor && (
                                     <span className="badge bg-light text-primary">
                                         Traffic: {Number(selectedRoute.avg_traffic_factor).toFixed(2)}x
@@ -585,7 +671,7 @@ const ScheduleTrip = () => {
                                     </div>
                                     <div className="col-4">
                                         <div className="p-2 bg-white rounded shadow-sm border">
-                                            <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize:"10px"}}>Fuel Cost</small>
+                                            <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize:"10px"}}>Fuel Cost (Est.)</small>
                                             <strong className="fs-5 text-danger"><span className="fs-6">Rs.</span> {selectedRoute.cost_currency.toFixed(0)}</strong>
                                         </div>
                                     </div>
@@ -598,18 +684,18 @@ const ScheduleTrip = () => {
                                             {selectedRoute.stop_order.map((stop, idx) => (
                                                 <React.Fragment key={idx}>
                                                     <span className="badge bg-secondary text-white p-2">{idx + 1}. {stop}</span>
-                                                    {idx < selectedRoute.stop_order.length - 1 && <span className="text-muted">➔</span>}
+                                                    {idx < selectedRoute.stop_order.length - 1 && (
+                                                        <ArrowRight size={14} className="text-muted" />
+                                                    )}
                                                 </React.Fragment>
                                             ))}
                                         </div>
                                     </div>
                                 )}
 
-                                <button
-                                    className="btn btn-success w-100 py-2 fw-bold shadow-sm"
-                                    onClick={() => setShowEmailModal(true)}
-                                >
-                                    ✉️ Email to Driver
+                                <button className="btn btn-success w-100 py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
+                                        onClick={() => setShowEmailModal(true)}>
+                                    <Mail size={15} /> Email to Driver
                                 </button>
                             </div>
                         </div>
@@ -641,7 +727,7 @@ const ScheduleTrip = () => {
                             <FitBounds routes={optimizedRoutes} />
 
                             {routeStartPosition && (
-                                <Marker position={routeStartPosition} icon={GreenIcon}>
+                                <Marker position={routeStartPosition} icon={GreenPin}>
                                     <Popup>
                                         Start: {selectedRoute?.stop_order?.[0] || "Start"}
                                     </Popup>
@@ -649,7 +735,7 @@ const ScheduleTrip = () => {
                             )}
 
                             {routeEndPosition && (
-                                <Marker position={routeEndPosition} icon={RedIcon}>
+                                <Marker position={routeEndPosition} icon={RedPin}>
                                     <Popup>
                                         End:{" "}
                                         {selectedRoute?.stop_order?.[

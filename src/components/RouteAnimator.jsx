@@ -2,69 +2,74 @@ import React, { useEffect, useState, useRef } from "react";
 import { Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 
-// 1. Define the Custom Truck Icon (using an Emoji for simplicity)
+// SVG truck icon — no emoji
 const truckIcon = L.divIcon({
-    className: "custom-truck-icon",
-    html: `<div style="font-size: 24px; line-height: 1;">🚚</div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -20]
+    className: "",
+    html: `
+        <div style="
+            width:36px;height:36px;
+            background:#1d4ed8;
+            border-radius:50%;
+            border:2px solid white;
+            box-shadow:0 2px 6px rgba(0,0,0,0.35);
+            display:flex;align-items:center;justify-content:center;">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                width="20" height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M1 3h15v13H1z"/>
+                <path d="M16 8h4l3 4v4h-7V8z"/>
+                <circle cx="5.5" cy="18.5" r="2.5"/>
+                <circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+        </div>`,
+    iconSize:    [36, 36],
+    iconAnchor:  [18, 18],
+    popupAnchor: [0, -20],
 });
 
 const RouteAnimator = ({ routeCoordinates, isPlaying, onAnimationEnd }) => {
-    // Initialize state directly from props (Avoids the useEffect error)
     const [position, setPosition] = useState(
         routeCoordinates && routeCoordinates.length > 0 ? routeCoordinates[0] : null
     );
 
     const requestRef = useRef();
-    const indexRef = useRef(0);
+    const indexRef   = useRef(0);
 
     useEffect(() => {
-        // 1. Guard Clauses: Stop if not playing or invalid data
         if (!isPlaying || !routeCoordinates || routeCoordinates.length === 0) {
             cancelAnimationFrame(requestRef.current);
             return;
         }
 
-        // 2. The Animation Loop
         const animate = () => {
-            // 1 = Slow (every point), 5 = Fast (skip 5 points per frame)
             const speed = 1;
-
             indexRef.current += speed;
 
-            // Check if we are still within the route array
             if (indexRef.current < routeCoordinates.length) {
-                const nextPos = routeCoordinates[indexRef.current];
-                setPosition(nextPos);
-
-                // Loop again
+                setPosition(routeCoordinates[indexRef.current]);
                 requestRef.current = requestAnimationFrame(animate);
             } else {
-                // End of Route: Snap to final point and stop
                 setPosition(routeCoordinates[routeCoordinates.length - 1]);
                 cancelAnimationFrame(requestRef.current);
-
-                // Notify parent that animation is done
                 if (onAnimationEnd) onAnimationEnd();
             }
         };
 
-        // Start the loop
         requestRef.current = requestAnimationFrame(animate);
-
-        // Cleanup: Stop animation if component unmounts
         return () => cancelAnimationFrame(requestRef.current);
     }, [isPlaying, routeCoordinates, onAnimationEnd]);
 
-    // If no position is set, don't render anything
     if (!position) return null;
 
     return (
         <Marker position={position} icon={truckIcon} zIndexOffset={1000}>
             <Popup>
-                <strong>Delivery in Progress</strong><br/>
+                <strong>Delivery in Progress</strong>
             </Popup>
         </Marker>
     );

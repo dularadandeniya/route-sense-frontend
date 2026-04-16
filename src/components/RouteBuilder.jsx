@@ -8,49 +8,13 @@ import {
     useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import RouteAnimator from "./RouteAnimator";
 import LocationPicker from "./LocationPicker";
 import api from "../axiosInstance.js";
 import AuthService from "../authentication/AuthService.js";
 import {Link} from "react-router-dom";
-
-// --- 1. ICON SETUP ---
-const createIcon = (color) => {
-    return new L.Icon({
-        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-    });
-};
-
-const GreenIcon = createIcon("green");
-const RedIcon = createIcon("red");
-
-// Custom Numbered Icon for Stops
-const createNumberIcon = (num) =>
-    L.divIcon({
-        className: "custom-number-icon",
-        html: `
-      <div style="
-        background-color: #ffc107; 
-        width: 30px; height: 30px; 
-        border-radius: 50%; 
-        border: 2px solid white;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-        display: flex; justify-content: center; align-items: center; 
-        font-weight: bold; color: #333; font-size: 14px;
-      ">
-        ${num}
-      </div>
-    `,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        popupAnchor: [0, -20]
-    });
+import { GreenPin, RedPin, createNumberIcon } from "./MapIcons.js";
+import {Truck, LogOut, Mail, X, CheckCircle2, Loader2, Send, MapPin,ArrowRight, Navigation , Plus, Circle, Play, Weight ,Activity  } from "lucide-react";
 
 // --- 2. HELPER COMPONENTS ---
 
@@ -262,14 +226,23 @@ const RouteBuilder = () => {
                 display: "flex", justifyContent: "center", alignItems: "center"
             }}>
                 <div className="card shadow-lg border-0" style={{ width: "400px", borderRadius: "15px" }}>
-                    <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center border-0" style={{ borderTopLeftRadius: "15px", borderTopRightRadius: "15px" }}>
-                        <h6 className="mb-0 fw-bold">✉️ Dispatch Route to Driver</h6>
-                        <button className="btn-close btn-close-white" onClick={() => setShowEmailModal(false)} disabled={isSendingEmail}></button>
+                    <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center border-0"
+                         style={{ borderTopLeftRadius: "15px", borderTopRightRadius: "15px" }}>
+                        <h6 className="mb-0 fw-bold d-flex align-items-center gap-2">
+                            <Mail size={16} /> Dispatch Route to Driver
+                        </h6>
+                        <button
+                            className="btn btn-sm btn-dark d-flex align-items-center"
+                            onClick={() => setShowEmailModal(false)}
+                            disabled={isSendingEmail}
+                        >
+                            <X size={16} />
+                        </button>
                     </div>
                     <div className="card-body p-4 text-center">
                         {emailSuccess ? (
                             <div className="py-3">
-                                <div className="text-success mb-2" style={{ fontSize: "40px" }}>✅</div>
+                                <CheckCircle2 size={48} className="text-success mb-2" />
                                 <h5 className="fw-bold text-success">Route Dispatched!</h5>
                                 <p className="text-muted small">The driver has received the optimal sequence.</p>
                             </div>
@@ -294,7 +267,11 @@ const RouteBuilder = () => {
                                     onClick={handleRealEmailSend}
                                     disabled={isSendingEmail || !driverEmail}
                                 >
-                                    {isSendingEmail ? "📡 Dispatching via SMTP..." : "Send Route Details"}
+                                    {isSendingEmail ? (
+                                        <><Loader2 size={14} className="spin me-1" /> Dispatching...</>
+                                    ) : (
+                                        <><Send size={14} className="me-1" /> Send Route Details</>
+                                    )}
                                 </button>
                             </>
                         )}
@@ -319,48 +296,65 @@ const RouteBuilder = () => {
                 <div className="col-lg-4">
                     <div className="card p-3 mb-4 shadow-sm" style={{ height: "auto" }}>
                         <div className="d-flex justify-content-between align-items-center mb-4">
-                            <h4 className="text-primary mb-0">🚛 RouteSense</h4>
+                            <h4 className="text-primary mb-0 d-flex align-items-center gap-2">
+                                <Truck size={22} /> RouteSense
+                            </h4>
                             <div className="d-flex gap-2">
-                                <Link to="/schedules" className="btn btn-sm btn-outline-primary">Schedules</Link>
+                                <Link to="/schedules" className="btn btn-sm btn-outline-primary">
+                                    Schedules
+                                </Link>
                                 <button
-                                    className="btn btn-sm btn-outline-secondary"
+                                    className="btn btn-sm btn-outline-danger"
                                     onClick={() => { AuthService.logout(); window.location.href = "/login"; }}
                                 >
-                                    Logout
+                                    <LogOut size={14} /> Logout
                                 </button>
                             </div>
                         </div>
 
                         {/* Start Point */}
                         <div className="mb-2">
-                            <label className="fw-bold text-success">🟢 Start Point</label>
+                            <label className="fw-bold text-success d-flex align-items-center gap-1">
+                                <Navigation size={14} className="text-success" /> Start Point
+                            </label>
                             <div className="input-group">
                                 <input
                                     type="text" className="form-control bg-white" readOnly
                                     value={request.start?.name || ""} placeholder="Select start..."
                                 />
-                                <button className="btn btn-outline-success" onClick={() => openPicker("start")}>📍</button>
+                                <button className="btn btn-outline-success d-flex align-items-center"
+                                        onClick={() => openPicker("start")}>
+                                    <MapPin size={15} />
+                                </button>
                             </div>
                         </div>
 
                         {/* End Point */}
                         <div className="mb-2">
-                            <label className="fw-bold text-danger">🔴 Destination</label>
+                            <label className="fw-bold text-danger d-flex align-items-center gap-1">
+                                <MapPin size={14} className="text-danger" /> Destination
+                            </label>
                             <div className="input-group">
                                 <input
                                     type="text" className="form-control bg-white" readOnly
                                     value={request.end?.name || ""} placeholder="Select destination..."
                                 />
-                                <button className="btn btn-outline-danger" onClick={() => openPicker("end")}>📍</button>
+                                <button className="btn btn-danger d-flex align-items-center"
+                                        onClick={() => openPicker("end")}>
+                                    <MapPin size={15} />
+                                </button>
                             </div>
                         </div>
 
                         {/* Stops List */}
                         <div className="mb-2 border-top pt-2">
                             <div className="d-flex justify-content-between mb-1">
-                                <label className="fw-bold text-warning">🟡 Stops</label>
-                                <button className="btn btn-sm btn-outline-secondary" onClick={addStop}>
-                                    + Add
+                                <label className="fw-bold text-warning d-flex align-items-center gap-1">
+                                    <Circle size={14} className="text-warning" fill="currentColor" /> Stops
+                                </label>
+                                <button className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                                        onClick={addStop}>
+                                    <Plus size={13} /> Add
                                 </button>
                             </div>
 
@@ -372,10 +366,14 @@ const RouteBuilder = () => {
                                             type="text" className="form-control bg-white" readOnly
                                             value={s.location?.name || ""} placeholder="Pick stop..."
                                         />
-                                        <button className="btn btn-outline-secondary" onClick={() => openPicker(`stop-${s.id}`)}>📍</button>
+                                        <button className="btn btn-outline-secondary d-flex align-items-center"
+                                                onClick={() => openPicker(`stop-${s.id}`)}>
+                                            <MapPin size={15} />
+                                        </button>
                                     </div>
-                                    <button className="btn btn-sm btn-danger" onClick={() => removeStop(s.id)}>
-                                        x
+                                    <button className="btn btn-sm btn-danger d-flex align-items-center"
+                                            onClick={() => removeStop(s.id)}>
+                                        <X size={13} />
                                     </button>
                                 </div>
                             ))}
@@ -383,7 +381,9 @@ const RouteBuilder = () => {
 
                         {showTrafficFactor && (
                             <div className="mb-2 border-top pt-2">
-                                <label className="fw-bold">🚦 Live Traffic Factor</label>
+                                <label className="fw-bold d-flex align-items-center gap-1">
+                                    <Activity size={14} className="text-warning" /> Live Traffic Factor
+                                </label>
                                 <input
                                     type="text"
                                     className="form-control bg-white"
@@ -401,7 +401,9 @@ const RouteBuilder = () => {
                         )}
 
                         <div className="mb-2 border-top pt-2">
-                            <label className="fw-bold">⚖️ Payload (kg)</label>
+                            <label className="fw-bold d-flex align-items-center gap-1">
+                                <Weight size={14} className="text-secondary" /> Payload (kg)
+                            </label>
                             <input
                                 type="number"
                                 className="form-control"
@@ -412,7 +414,9 @@ const RouteBuilder = () => {
 
                         {/* Vehicle Controls */}
                         <div className="mb-2 border-top pt-2">
-                            <label className="fw-bold">🚚 Vehicle Type</label>
+                            <label className="fw-bold d-flex align-items-center gap-1">
+                                <Truck size={14} className="text-secondary" /> Vehicle Type
+                            </label>
                             <select
                                 className="form-select"
                                 value={request.vehicleType}
@@ -435,12 +439,9 @@ const RouteBuilder = () => {
                             {loading ? "Calculating..." : "Visualize Route"}
                         </button>
 
-                        <button
-                            className="btn btn-warning w-100 mt-2"
-                            onClick={() => setIsAnimating(true)}
-                            disabled={!selectedRoute}
-                        >
-                            ▶ Simulate Delivery
+                        <button className="btn btn-warning w-100 mt-2 d-flex align-items-center justify-content-center gap-2"
+                                onClick={() => setIsAnimating(true)} disabled={!selectedRoute}>
+                            <Play size={14} /> Simulate Delivery
                         </button>
                     </div>
 
@@ -448,7 +449,7 @@ const RouteBuilder = () => {
                     {selectedRoute && (
                         <div className="card border-0 shadow-lg mt-3 mb-4" style={{ borderRadius: "15px", overflow: "hidden" }}>
                             <div className="card-header bg-primary text-white p-3 border-0 d-flex justify-content-between align-items-center">
-                                <span className="fw-bold mb-0">📋 Optimized Route Ready</span>
+                                <span className="fw-bold mb-0"> Optimized Route Ready</span>
                                 {selectedRoute.avg_traffic_factor && (
                                     <span className="badge bg-light text-primary">
                                         Traffic: {Number(selectedRoute.avg_traffic_factor).toFixed(2)}x
@@ -476,7 +477,7 @@ const RouteBuilder = () => {
                                     </div>
                                     <div className="col-4">
                                         <div className="p-2 bg-white rounded shadow-sm border">
-                                            <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize:"10px"}}>Fuel Cost</small>
+                                            <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize:"10px"}}>Fuel Cost (Est.)</small>
                                             <strong className="fs-5 text-danger"><span className="fs-6">Rs.</span> {selectedRoute.cost_currency.toFixed(0)}</strong>
                                         </div>
                                     </div>
@@ -490,7 +491,9 @@ const RouteBuilder = () => {
                                             {selectedRoute.stop_order.map((stop, idx) => (
                                                 <React.Fragment key={idx}>
                                                     <span className="badge bg-secondary text-white p-2">{idx + 1}. {stop}</span>
-                                                    {idx < selectedRoute.stop_order.length - 1 && <span className="text-muted">➔</span>}
+                                                    {idx < selectedRoute.stop_order.length - 1 && (
+                                                        <ArrowRight size={14} className="text-muted" />
+                                                    )}
                                                 </React.Fragment>
                                             ))}
                                         </div>
@@ -527,14 +530,14 @@ const RouteBuilder = () => {
 
                             {/* Start Marker */}
                             {request.start && (
-                                <Marker position={[request.start.lat, request.start.lon]} icon={GreenIcon}>
+                                <Marker position={[request.start.lat, request.start.lon]} icon={GreenPin}>
                                     <Popup>Start: {request.start.name}</Popup>
                                 </Marker>
                             )}
 
                             {/* End Marker */}
                             {request.end && (
-                                <Marker position={[request.end.lat, request.end.lon]} icon={RedIcon}>
+                                <Marker position={[request.end.lat, request.end.lon]} icon={RedPin}>
                                     <Popup>End: {request.end.name}</Popup>
                                 </Marker>
                             )}

@@ -5,6 +5,7 @@ import L from "leaflet";
 
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
+import {Loader2, MapPin, X, Check} from "lucide-react";
 
 const DefaultIcon = L.icon({
     iconUrl: icon,
@@ -99,7 +100,9 @@ const LocationPicker = ({ onClose, onConfirm }) => {
             }}
         >
             <div className="bg-white p-3 rounded shadow-lg" style={{ width: "90%", maxWidth: "600px" }}>
-                <h5 className="mb-3">📍 Pick a Location</h5>
+                <h5 className="mb-3 d-flex align-items-center gap-2">
+                    <MapPin size={18} className="text-danger" /> Pick a Location
+                </h5>
 
                 {/* Search Bar with Autocomplete */}
                 <div style={{ position: "relative", marginBottom: "15px" }}>
@@ -115,7 +118,11 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                         }}
                     />
 
-                    {isSearching && <small className="text-muted mt-1 d-block">Searching...</small>}
+                    {isSearching && (
+                        <small className="text-muted mt-1 d-flex align-items-center gap-1">
+                            <Loader2 size={12} className="spin" /> Searching...
+                        </small>
+                    )}
 
                     {/* Dropdown Suggestions */}
                     {suggestions.length > 0 && (
@@ -162,13 +169,16 @@ const LocationPicker = ({ onClose, onConfirm }) => {
 
                 {/* Actions */}
                 <div className="d-flex justify-content-end gap-2">
-                    <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+                    <button className="btn btn-secondary d-flex align-items-center gap-1"
+                            onClick={onClose}>
+                        <X size={14} /> Cancel
+                    </button>
                     <button
-                        className="btn btn-success"
+                        className="btn btn-success d-flex align-items-center gap-1"
                         onClick={() => onConfirm(selected)}
                         disabled={!selected}
                     >
-                        Confirm Location
+                        <Check size={14} /> Confirm Location
                     </button>
                 </div>
             </div>

@@ -1,15 +1,16 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {BrowserRouter as Router, Routes, Route, Navigate} from "react-router-dom";
 import Login from "./authentication/Login";
 import AuthService from "./authentication/AuthService";
 import RouteBuilder from "./components/RouteBuilder";
 import Register from "./authentication/Register.jsx";
-import ScheduleTrip from "./components/ScheduleTrip.jsx"; // Your main map component
+import ScheduleTrip from "./components/ScheduleTrip.jsx";
+import BulkSchedule from "./components/BulkSchedule.jsx"; // Your main map component
 
 // 🔒 Guard Component: Only allows access if logged in
-const PrivateRoute = ({ children }) => {
+const PrivateRoute = ({children}) => {
     const user = AuthService.getCurrentUser();
-    return user ? children : <Navigate to="/login" />;
+    return user ? children : <Navigate to="/login"/>;
 };
 
 function App() {
@@ -18,15 +19,15 @@ function App() {
             <Routes>
                 {/* Public Route: Login */}
                 {/* Public Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
+                <Route path="/login" element={<Login/>}/>
+                <Route path="/register" element={<Register/>}/>
 
                 {/* Protected Route: Dashboard (The Map) */}
                 <Route
                     path="/dashboard"
                     element={
                         <PrivateRoute>
-                            <RouteBuilder />
+                            <RouteBuilder/>
                         </PrivateRoute>
                     }
                 />
@@ -35,13 +36,15 @@ function App() {
                     path="/schedules"
                     element={
                         <PrivateRoute>
-                            <ScheduleTrip />
+                            <ScheduleTrip/>
                         </PrivateRoute>
                     }
                 />
 
+                <Route path="/bulk-schedule" element={<PrivateRoute><BulkSchedule/></PrivateRoute>}/>
+
                 {/* Default Redirect: Go to Dashboard (which will kick to Login if needed) */}
-                <Route path="*" element={<Navigate to="/dashboard" />} />
+                <Route path="*" element={<Navigate to="/dashboard"/>}/>
             </Routes>
         </Router>
     );

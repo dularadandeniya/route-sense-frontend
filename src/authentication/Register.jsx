@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthService from "./AuthService";
 import "./Auth.css";
+import { UserPlus } from "lucide-react";
 
 const Register = () => {
     const [username, setUsername] = useState("");
@@ -28,7 +29,7 @@ const Register = () => {
             }, 2000);
 
         } catch (err) {
-            setMessage("❌ Username or Email already exists");
+            setMessage("Username or Email already exists");
             setIsError(true);
         }
     };
@@ -36,8 +37,11 @@ const Register = () => {
     return (
         <div className="auth-container">
             <div className="auth-card">
-                <h2>Create Account 🚀</h2>
-                <p className="auth-subtitle">Join RouteSense today</p>
+                <div className="text-center mb-4">
+                    <UserPlus size={36} className="text-primary mb-2" />
+                    <h3 className="fw-bold mb-1">Create Account</h3>
+                    <p className="text-muted small">Join RouteSense today</p>
+                </div>
 
                 {message && (
                     <div className={isError ? "auth-alert" : "alert alert-success"}>
