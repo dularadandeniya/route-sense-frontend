@@ -524,7 +524,7 @@ export default function BulkSchedule() {
                         <div className="card p-0 overflow-hidden">
                             <div className="card-header d-flex justify-content-between align-items-center">
                                 <strong className="d-flex align-items-center gap-2">
-                                    <Map size={16} /> Optimized Routes — All Trips
+                                    <Map size={16} /> Optimized Routes - All Trips
                                 </strong>
                                 <small className="text-muted">Click a route to highlight</small>
                             </div>
