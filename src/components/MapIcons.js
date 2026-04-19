@@ -1,5 +1,4 @@
 import L from "leaflet";
-// ── SVG-based colored circle marker (for BulkSchedule) ──
 export const createDotIcon = (color) =>
     L.divIcon({
         className: "",
@@ -12,7 +11,6 @@ export const createDotIcon = (color) =>
         iconAnchor: [6, 6],
     });
 
-// ── SVG pin marker (replaces GitHub color markers) ──────
 export const createPinIcon = (color = "#0d6efd", label = "") =>
     L.divIcon({
         className: "",
@@ -34,7 +32,6 @@ export const createPinIcon = (color = "#0d6efd", label = "") =>
         popupAnchor: [0, -38],
     });
 
-// ── Numbered stop icon (replaces yellow divIcon) ────────
 export const createNumberIcon = (num, color = "#f59e0b") =>
     L.divIcon({
         className: "",
@@ -52,7 +49,6 @@ export const createNumberIcon = (num, color = "#f59e0b") =>
         popupAnchor: [0, -18],
     });
 
-// ── Preset colors ────────────────────────────────────────
 export const GreenPin  = createPinIcon("#16a34a");
 export const RedPin    = createPinIcon("#dc2626");
 export const BluePin   = createPinIcon("#2563eb");

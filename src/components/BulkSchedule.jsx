@@ -9,11 +9,12 @@ import L from "leaflet";
 import api from "../axiosInstance";
 import { Link } from "react-router-dom";
 import AuthService from "../authentication/AuthService";
+import { createNumberIcon } from "./MapIcons.js";
 import { Download, Upload, FileSpreadsheet, Plus, Rocket, Zap,
     Tag, Clock, Ruler, Leaf, Banknote, LogOut, XCircle, CheckCircle,
     Send, Package, Map, BarChart2, X } from "lucide-react";
 
-// ── Color palette — one per trip ──────────────────────────
+
 const TRIP_COLORS = [
     "#e74c3c","#2ecc71","#9b59b6","#f39c12",
     "#1abc9c","#e67e22","#3498db","#e91e63",
@@ -31,7 +32,6 @@ const emptyRow = () => ({
     stop2Name: "", stop2Lat: "", stop2Lon: "",
 });
 
-// ── Leaflet icon helpers ──────────────────────────────────
 const createColorIcon = (hexColor) =>
     L.divIcon({
         className: "",
@@ -44,7 +44,7 @@ const createColorIcon = (hexColor) =>
         iconAnchor: [7, 7],
     });
 
-// ── FitBounds: fits map to all rendered routes ────────────
+
 const FitAllBounds = ({ allRoutes }) => {
     const map = useMap();
     React.useEffect(() => {
@@ -58,7 +58,7 @@ const FitAllBounds = ({ allRoutes }) => {
     return null;
 };
 
-// ── Format seconds → "Xh Ym" ─────────────────────────────
+
 const fmtTime = (s) => {
     const m = Math.round(s / 60);
     const h = Math.floor(m / 60);
@@ -71,7 +71,7 @@ const fmtDist = (meters) => {
     return (num / 1000).toFixed(2) + " km";
 };
 
-// ── Helper: Build Google Maps URL ─────────────────────────
+
 const buildMapsUrl = (row) => {
     if (!row) return "";
     const origin = `${row.startLat},${row.startLon}`;
@@ -83,7 +83,7 @@ const buildMapsUrl = (row) => {
     return waypts.length > 0 ? `${base}&waypoints=${waypts.join("|")}` : base;
 };
 
-// ── Helper: Build Stops Text for Email ────────────────────
+
 const buildStopsText = (row) => {
     let txt = `1. ${row.startName || "Start"} (${row.startLat}, ${row.startLon})\n`;
     let seq = 2;
@@ -93,36 +93,30 @@ const buildStopsText = (row) => {
     return txt;
 };
 
-// ═════════════════════════════════════════════════════════
+
 export default function BulkSchedule() {
     const [rows, setRows]               = useState([emptyRow()]);
     const [message, setMessage]         = useState("");
     const [loading, setLoading]         = useState(false);
 
-    // Email states
-    const [emailInputs, setEmailInputs]   = useState({});  // { tripName: emailString }
-    const [emailSending, setEmailSending] = useState({});  // { tripName: bool }
-    const [emailSent, setEmailSent]       = useState({});  // { tripName: bool }
+    const [emailInputs, setEmailInputs]   = useState({});
+    const [emailSending, setEmailSending] = useState({});
+    const [emailSent, setEmailSent]       = useState({});
 
-    // After bulk submit: [{id, tripName, color}]
     const [createdTrips, setCreatedTrips] = useState([]);
 
-    // After optimize all: [{tripName, color, route, meta, rowData}]
     const [optimizedResults, setOptimizedResults] = useState([]);
 
-    // Which trip is highlighted on map
     const [highlighted, setHighlighted] = useState(null);
 
-    // Optimize-all progress
     const [optimProgress, setOptimProgress] = useState({ current: 0, total: 0 });
 
-    // ── Table helpers ───────────────────────────────────
     const updateRow = (i, field, value) =>
         setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
     const addRow    = () => setRows((prev) => [...prev, emptyRow()]);
     const removeRow = (i) => setRows((prev) => prev.filter((_, idx) => idx !== i));
 
-    // ── Download blank template ─────────────────────────
+
     const downloadTemplate = () => {
         const headers = [
             "tripName","startName","startLat","startLon",
@@ -143,7 +137,6 @@ export default function BulkSchedule() {
         XLSX.writeFile(wb, "bulk_trip_template.xlsx");
     };
 
-    // ── Export current rows to Excel ─────────────────────
     const exportToExcel = () => {
         const headers = Object.keys(emptyRow());
         const data = rows.map((r) => headers.map((h) => r[h]));
@@ -153,7 +146,7 @@ export default function BulkSchedule() {
         XLSX.writeFile(wb, "bulk_trips.xlsx");
     };
 
-    // ── Upload Excel → populate table ────────────────────
+
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -187,11 +180,10 @@ export default function BulkSchedule() {
             setMessage(`Loaded ${parsed.length} trip(s) from Excel.`);
         };
         reader.readAsBinaryString(file);
-        // reset so same file can be re-uploaded
         e.target.value = "";
     };
 
-    // ── Submit all rows → POST /api/schedules/bulk ───────
+
     const handleSubmitAll = async () => {
         setLoading(true);
         setMessage("");
@@ -243,7 +235,7 @@ export default function BulkSchedule() {
         }
     };
 
-    // ── Optimize All ─────────────────────────────────────
+
     const handleOptimizeAll = async () => {
         if (createdTrips.length === 0) return;
         setOptimizedResults([]);
@@ -257,7 +249,6 @@ export default function BulkSchedule() {
             try {
                 const res = await api.post(`/api/schedules/${trip.id}/optimize`);
                 const routes = res.data || [];
-                // Pick the Recommended route, else first
                 const best = routes.find((r) => r.mode?.includes("Recommended")) || routes[0];
                 if (best) {
                     results.push({
@@ -285,7 +276,7 @@ export default function BulkSchedule() {
         setMessage(`Optimization complete for ${results.filter(r => r.route).length} trip(s).`);
     };
 
-    // ── Email Sending Logic ──────────────────────────────
+
     const handleSendEmail = async (result) => {
         const email = emailInputs[result.tripName];
         if (!email || !email.includes("@")) {
@@ -313,7 +304,6 @@ export default function BulkSchedule() {
         }
     };
 
-    // ── Export optimized results to Excel ─────────────────
     const exportResults = () => {
         const headers = ["Trip Name","Mode","Time","Distance (km)","CO2 (kg)","Cost (LKR)"];
         const data = optimizedResults
@@ -334,11 +324,9 @@ export default function BulkSchedule() {
 
     const successResults = optimizedResults.filter((r) => r.route);
 
-    // ── Render ────────────────────────────────────────────
+
     return (
         <div className="container-fluid py-4">
-
-            {/* Header */}
             <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <h3 className="mb-0 d-flex align-items-center gap-2">
                     <Package size={22} className="text-warning" /> Bulk Trip Scheduling
@@ -355,7 +343,6 @@ export default function BulkSchedule() {
                 </div>
             </div>
 
-            {/* Action toolbar */}
             <div className="d-flex gap-2 mb-3 flex-wrap">
                 <button
                     className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
@@ -386,7 +373,6 @@ export default function BulkSchedule() {
                 <div className="alert alert-info py-2 mb-3">{message}</div>
             )}
 
-            {/* Progress bar while optimizing */}
             {optimProgress.total > 0 && (
                 <div className="mb-3">
                     <div className="d-flex justify-content-between mb-1">
@@ -402,7 +388,6 @@ export default function BulkSchedule() {
                 </div>
             )}
 
-            {/* ── Input Table ── */}
             <div style={{ overflowX: "auto", marginBottom: "1rem" }}>
                 <table className="table table-bordered table-sm" style={{ minWidth: 1500 }}>
                     <thead className="table-dark">
@@ -505,7 +490,6 @@ export default function BulkSchedule() {
                 </table>
             </div>
 
-            {/* Submit + Optimize buttons */}
             <div className="d-flex justify-content-end gap-2 mb-4">
                 <button
                     className="btn btn-primary d-flex align-items-center gap-2"
@@ -531,11 +515,9 @@ export default function BulkSchedule() {
                 </button>
             </div>
 
-            {/* ── Map + Results ── */}
             {successResults.length > 0 && (
                 <div className="row g-4">
 
-                    {/* Map */}
                     <div className="col-lg-8">
                         <div className="card p-0 overflow-hidden">
                             <div className="card-header d-flex justify-content-between align-items-center">
@@ -555,17 +537,36 @@ export default function BulkSchedule() {
                                 />
                                 <FitAllBounds allRoutes={successResults} />
 
-                                {successResults.map(({ tripName, color, route }) => {
+                                {successResults.map(({ tripName, color, route, rowData }) => {
                                     if (!route?.route_sequence?.length) return null;
+
                                     const positions = route.route_sequence.map((p) => [
-                                        parseFloat(p.lat), parseFloat(p.lon),
+                                        parseFloat(p.lat),
+                                        parseFloat(p.lon),
                                     ]);
+
+                                    const stops = [
+                                        rowData?.stop1Name && rowData?.stop1Lat && rowData?.stop1Lon
+                                            ? {
+                                                name: rowData.stop1Name,
+                                                lat: parseFloat(rowData.stop1Lat),
+                                                lon: parseFloat(rowData.stop1Lon),
+                                            }
+                                            : null,
+                                        rowData?.stop2Name && rowData?.stop2Lat && rowData?.stop2Lon
+                                            ? {
+                                                name: rowData.stop2Name,
+                                                lat: parseFloat(rowData.stop2Lat),
+                                                lon: parseFloat(rowData.stop2Lon),
+                                            }
+                                            : null,
+                                    ].filter(Boolean);
+
                                     const isHl = highlighted === tripName;
                                     const dimmed = highlighted && !isHl;
 
                                     return (
                                         <React.Fragment key={tripName}>
-                                            {/* Route polyline */}
                                             <Polyline
                                                 positions={positions}
                                                 pathOptions={{
@@ -588,14 +589,34 @@ export default function BulkSchedule() {
                                                 </Popup>
                                             </Polyline>
 
-                                            {/* Start marker */}
                                             <Marker position={positions[0]} icon={createColorIcon(color)}>
-                                                <Popup><strong>{tripName}</strong><br />Start</Popup>
+                                                <Popup><strong>{tripName}</strong><br />Start: {rowData?.startName || "Start"}</Popup>
                                             </Marker>
 
-                                            {/* End marker */}
+                                            {stops.map((s, idx) => {
+                                                let displayNum = idx + 1;
+                                                const optIndex = route?.stop_order?.indexOf(s.name);
+
+                                                if (optIndex > 0 && optIndex < route.stop_order.length - 1) {
+                                                    displayNum = optIndex;
+                                                }
+
+                                                return (
+                                                    <Marker
+                                                        key={`${tripName}-stop-${idx}`}
+                                                        position={[s.lat, s.lon]}
+                                                        icon={createNumberIcon(displayNum)}
+                                                    >
+                                                        <Popup>
+                                                            <strong>{tripName}</strong><br />
+                                                            Stop {displayNum}: {s.name}
+                                                        </Popup>
+                                                    </Marker>
+                                                );
+                                            })}
+
                                             <Marker position={positions[positions.length - 1]} icon={createColorIcon(color)}>
-                                                <Popup><strong>{tripName}</strong><br /> End</Popup>
+                                                <Popup><strong>{tripName}</strong><br />End: {rowData?.endName || "End"}</Popup>
                                             </Marker>
                                         </React.Fragment>
                                     );
@@ -604,7 +625,6 @@ export default function BulkSchedule() {
                         </div>
                     </div>
 
-                    {/* Results sidebar */}
                     <div className="col-lg-4">
                         <div className="card h-100">
                             <div className="card-header d-flex justify-content-between align-items-center">
@@ -627,7 +647,6 @@ export default function BulkSchedule() {
                                         }}
                                         onClick={() => setHighlighted((prev) => prev === tripName ? null : tripName)}
                                     >
-                                        {/* Trip name + color dot */}
                                         <div className="d-flex align-items-center gap-2 mb-1">
                                             <span style={{ width:12, height:12, borderRadius:"50%", background:color, display:"inline-block", flexShrink:0 }} />
                                             <strong style={{ fontSize:14 }}>{tripName}</strong>
@@ -635,7 +654,6 @@ export default function BulkSchedule() {
 
                                         {route ? (
                                             <>
-                                                {/* Route stats */}
                                                 <div style={{ fontSize: 13, paddingLeft: 20, marginBottom: 8, lineHeight: 1.8 }}>
                                                     <div className="d-flex align-items-center gap-1">
                                                         <Tag size={12} className="text-secondary" />
@@ -661,7 +679,6 @@ export default function BulkSchedule() {
                                                     )}
                                                 </div>
 
-                                                {/* Google Maps link */}
                                                 {rowData && (
                                                     <div style={{ paddingLeft:20, marginBottom:8 }}>
                                                         <a
@@ -677,7 +694,6 @@ export default function BulkSchedule() {
                                                     </div>
                                                 )}
 
-                                                {/* Email to driver */}
                                                 <div
                                                     style={{ paddingLeft:20 }}
                                                     onClick={(e) => e.stopPropagation()}

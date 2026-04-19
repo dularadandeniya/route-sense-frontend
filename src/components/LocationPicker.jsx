@@ -15,7 +15,6 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Handle map clicks
 const MapClickHandler = ({ onLocationSelect, setQuery }) => {
     useMapEvents({
         click(e) {
@@ -25,7 +24,7 @@ const MapClickHandler = ({ onLocationSelect, setQuery }) => {
                 .then((data) => {
                     const name = data.display_name.split(",")[0];
                     onLocationSelect({ lat: lat, lon: lng, name: name });
-                    setQuery(name); // Update the search box
+                    setQuery(name);
                 });
         },
     });
@@ -39,19 +38,16 @@ const LocationPicker = ({ onClose, onConfirm }) => {
     const [mapCenter, setMapCenter] = useState([6.9271, 79.8612]); // Colombo
     const [isSearching, setIsSearching] = useState(false);
 
-    // Autocomplete effect (runs when query changes)
+
     useEffect(() => {
-        // Wait 500ms before calling API
         const delayTimer = setTimeout(async () => {
             if (query.length > 2) {
                 setIsSearching(true);
                 try {
-                    // 1. Use Photon API limited to Sri Lanka map bounds
                     const res = await axios.get(
                         `https://photon.komoot.io/api/?q=${query}&bbox=79.5,5.9,81.9,9.9&limit=5`
                     );
 
-                    // 2. Format Photon data to match our app
                     const formattedData = res.data.features.map(f => ({
                         lat: f.geometry.coordinates[1],
                         lon: f.geometry.coordinates[0],
@@ -65,26 +61,25 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                 }
                 setIsSearching(false);
             } else {
-                setSuggestions([]); // Clear box
+                setSuggestions([]);
             }
         }, 500);
 
         return () => clearTimeout(delayTimer);
     }, [query]);
 
-    // Handle clicking a suggestion from the dropdown
     const handleSelectSuggestion = (item) => {
         const lat = parseFloat(item.lat);
         const lon = parseFloat(item.lon);
         const name = item.display_name.split(",")[0];
 
         setSelected({ lat, lon, name });
-        setMapCenter([lat, lon]); // Move map
-        setQuery(name); // Put selected name in box
-        setSuggestions([]); // Hide dropdown
+        setMapCenter([lat, lon]);
+        setQuery(name);
+        setSuggestions([]);
     };
 
-    // Re-center map component
+
     const ChangeView = ({ center }) => {
         const map = useMapEvents({});
         map.setView(center, 13);
@@ -104,7 +99,6 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                     <MapPin size={18} className="text-danger" /> Pick a Location
                 </h5>
 
-                {/* Search Bar with Autocomplete */}
                 <div style={{ position: "relative", marginBottom: "15px" }}>
                     <input
                         type="text"
@@ -113,7 +107,6 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                         value={query}
                         onChange={(e) => {
                             setQuery(e.target.value);
-                            // Clear selection if user starts typing again
                             if (selected) setSelected(null);
                         }}
                     />
@@ -124,7 +117,6 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                         </small>
                     )}
 
-                    {/* Dropdown Suggestions */}
                     {suggestions.length > 0 && (
                         <ul className="list-group" style={{
                             position: "absolute", width: "100%", zIndex: 1000,
@@ -146,7 +138,6 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                     )}
                 </div>
 
-                {/* The Map */}
                 <div style={{ height: "300px", border: "1px solid #ddd", marginBottom: "15px", position: "relative", zIndex: 1 }}>
                     <MapContainer center={mapCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
                         <TileLayer
@@ -159,7 +150,6 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                     </MapContainer>
                 </div>
 
-                {/* Selected Info */}
                 {selected && (
                     <div className="alert alert-info py-2 small">
                         Selected: <strong>{selected.name}</strong> <br/>
@@ -167,7 +157,6 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                     </div>
                 )}
 
-                {/* Actions */}
                 <div className="d-flex justify-content-end gap-2">
                     <button className="btn btn-secondary d-flex align-items-center gap-1"
                             onClick={onClose}>

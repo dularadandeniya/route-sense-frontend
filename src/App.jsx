@@ -5,9 +5,8 @@ import AuthService from "./authentication/AuthService";
 import RouteBuilder from "./components/RouteBuilder";
 import Register from "./authentication/Register.jsx";
 import ScheduleTrip from "./components/ScheduleTrip.jsx";
-import BulkSchedule from "./components/BulkSchedule.jsx"; // Your main map component
+import BulkSchedule from "./components/BulkSchedule.jsx";
 
-// 🔒 Guard Component: Only allows access if logged in
 const PrivateRoute = ({children}) => {
     const user = AuthService.getCurrentUser();
     return user ? children : <Navigate to="/login"/>;
@@ -17,12 +16,10 @@ function App() {
     return (
         <Router>
             <Routes>
-                {/* Public Route: Login */}
-                {/* Public Routes */}
+
                 <Route path="/login" element={<Login/>}/>
                 <Route path="/register" element={<Register/>}/>
 
-                {/* Protected Route: Dashboard (The Map) */}
                 <Route
                     path="/dashboard"
                     element={
@@ -43,7 +40,6 @@ function App() {
 
                 <Route path="/bulk-schedule" element={<PrivateRoute><BulkSchedule/></PrivateRoute>}/>
 
-                {/* Default Redirect: Go to Dashboard (which will kick to Login if needed) */}
                 <Route path="*" element={<Navigate to="/dashboard"/>}/>
             </Routes>
         </Router>

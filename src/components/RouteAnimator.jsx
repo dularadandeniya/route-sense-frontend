@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import { Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 
-// SVG truck icon — no emoji
 const truckIcon = L.divIcon({
     className: "",
     html: `

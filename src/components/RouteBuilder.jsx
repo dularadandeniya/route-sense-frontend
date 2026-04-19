@@ -16,7 +16,6 @@ import {Link} from "react-router-dom";
 import { GreenPin, RedPin, createNumberIcon } from "./MapIcons.js";
 import {Truck, LogOut, Mail, X, CheckCircle2, Loader2, Send, MapPin,ArrowRight, Navigation , Plus, Circle, Play, Weight ,Activity  } from "lucide-react";
 
-// --- 2. HELPER COMPONENTS ---
 
 const FitBounds = ({ routes }) => {
     const map = useMap();
@@ -52,10 +51,8 @@ const RouteLegend = () => (
     </div>
 );
 
-// --- 3. MAIN COMPONENT ---
 
 const RouteBuilder = () => {
-    // Application State
     const [request, setRequest] = useState({
         start: null,
         end: null,
@@ -71,16 +68,13 @@ const RouteBuilder = () => {
     const [calculatedTrafficFactor, setCalculatedTrafficFactor] = useState(null);
     const [showTrafficFactor, setShowTrafficFactor] = useState(false);
 
-    // Picker Modal State
     const [pickerState, setPickerState] = useState({ isOpen: false, activeField: null });
 
-    // --- EMAIL MODAL STATES ---
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [driverEmail, setDriverEmail] = useState("");
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [emailSuccess, setEmailSuccess] = useState(false);
 
-    // --- HANDLERS ---
     const openPicker = (field) => {
         setPickerState({ isOpen: true, activeField: field });
     };
@@ -215,7 +209,6 @@ const RouteBuilder = () => {
         }
     };
 
-    // --- EMAIL MODAL UI ---
     const EmailModal = () => {
         if (!showEmailModal) return null;
 
@@ -283,7 +276,6 @@ const RouteBuilder = () => {
 
     return (
         <div className="container-fluid py-4" style={{ overflow: "hidden" }}>
-            {/* LOCATION PICKER MODAL */}
             {pickerState.isOpen && (
                 <LocationPicker
                     onClose={() => setPickerState({ isOpen: false, activeField: null })}
@@ -292,7 +284,6 @@ const RouteBuilder = () => {
             )}
 
             <div className="row g-4">
-                {/* Left column */}
                 <div className="col-lg-4">
                     <div className="card p-3 mb-4 shadow-sm" style={{ height: "auto" }}>
                         <div className="d-flex justify-content-between align-items-center mb-4">
@@ -312,7 +303,6 @@ const RouteBuilder = () => {
                             </div>
                         </div>
 
-                        {/* Start Point */}
                         <div className="mb-2">
                             <label className="fw-bold text-success d-flex align-items-center gap-1">
                                 <Navigation size={14} className="text-success" /> Start Point
@@ -329,7 +319,6 @@ const RouteBuilder = () => {
                             </div>
                         </div>
 
-                        {/* End Point */}
                         <div className="mb-2">
                             <label className="fw-bold text-danger d-flex align-items-center gap-1">
                                 <MapPin size={14} className="text-danger" /> Destination
@@ -346,7 +335,6 @@ const RouteBuilder = () => {
                             </div>
                         </div>
 
-                        {/* Stops List */}
                         <div className="mb-2 border-top pt-2">
                             <div className="d-flex justify-content-between mb-1">
                                 <label className="fw-bold text-warning d-flex align-items-center gap-1">
@@ -412,7 +400,6 @@ const RouteBuilder = () => {
                             />
                         </div>
 
-                        {/* Vehicle Controls */}
                         <div className="mb-2 border-top pt-2">
                             <label className="fw-bold d-flex align-items-center gap-1">
                                 <Truck size={14} className="text-secondary" /> Vehicle Type
@@ -430,7 +417,6 @@ const RouteBuilder = () => {
                             </select>
                         </div>
 
-                        {/* Action Buttons */}
                         <button
                             className="btn btn-primary w-100 mt-2"
                             onClick={handleOptimize}
@@ -445,7 +431,6 @@ const RouteBuilder = () => {
                         </button>
                     </div>
 
-                    {/* POLISHED RESULTS CARD */}
                     {selectedRoute && (
                         <div className="card border-0 shadow-lg mt-3 mb-4" style={{ borderRadius: "15px", overflow: "hidden" }}>
                             <div className="card-header bg-primary text-white p-3 border-0 d-flex justify-content-between align-items-center">
@@ -483,7 +468,6 @@ const RouteBuilder = () => {
                                     </div>
                                 </div>
 
-                                {/* STOP ORDER LIST */}
                                 {selectedRoute.stop_order?.length > 0 && (
                                     <div className="mb-4 p-3 bg-white rounded shadow-sm border">
                                         <small className="text-muted fw-bold text-uppercase mb-2 d-block" style={{fontSize:"10px"}}>Optimal Stop Sequence</small>
@@ -504,7 +488,6 @@ const RouteBuilder = () => {
                     )}
                 </div>
 
-                {/* Right column */}
                 <div className="col-lg-8">
                     <div
                         className="card shadow-lg border-0"
@@ -528,27 +511,23 @@ const RouteBuilder = () => {
 
                             <FitBounds routes={routes} />
 
-                            {/* Start Marker */}
                             {request.start && (
                                 <Marker position={[request.start.lat, request.start.lon]} icon={GreenPin}>
                                     <Popup>Start: {request.start.name}</Popup>
                                 </Marker>
                             )}
 
-                            {/* End Marker */}
                             {request.end && (
                                 <Marker position={[request.end.lat, request.end.lon]} icon={RedPin}>
                                     <Popup>End: {request.end.name}</Popup>
                                 </Marker>
                             )}
 
-                            {/* DRAW DYNAMIC NUMBERED STOPS ON MAP */}
                             {request.stops.map((s, i) => {
                                 if (s.location) {
                                     let displayNum = i + 1;
                                     if (selectedRoute && selectedRoute.stop_order) {
                                         const optIndex = selectedRoute.stop_order.indexOf(s.location.name);
-                                        // -1 because stop_order[0] is start point
                                         if (optIndex > 0 && optIndex < selectedRoute.stop_order.length - 1) {
                                             displayNum = optIndex;
                                         }
@@ -566,7 +545,6 @@ const RouteBuilder = () => {
                                 return null;
                             })}
 
-                            {/* Polylines (Routes) */}
                             {routes.map((route, index) => {
                                 const positions = (route.route_sequence || []).map((p) => [
                                     parseFloat(p.lat),
@@ -577,7 +555,6 @@ const RouteBuilder = () => {
                                 const isOptimal = route.mode?.includes("Recommended");
                                 const selected = isSameRoute(selectedRoute, route);
 
-                                // Visual Styling Logic
                                 const dimOthers = !!selectedRoute;
                                 const opacity = !dimOthers ? (isOptimal ? 0.95 : 0.75) : (selected ? 0.95 : 0.25);
                                 const weight = selected ? (isOptimal ? 9 : 7) : (isOptimal ? 8 : 6);
@@ -606,7 +583,6 @@ const RouteBuilder = () => {
                                 );
                             })}
 
-                            {/* TRUCK ANIMATOR (PRESERVED) */}
                             {selectedRoute && (
                                 <RouteAnimator
                                     key={`${selectedRoute.mode}-${selectedRoute.time_seconds}`}

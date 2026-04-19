@@ -1,4 +1,4 @@
-/* GLOBAL RESET FOR FULL SCREEN APP */
+
 html, body, #root {
   height: 100%;
   width: 100%;
@@ -6,12 +6,10 @@ html, body, #root {
   padding: 0;
 }
 
-/* IMPORTANT: don't center the whole app */
 body {
   display: block;
 }
 
-/* Leaflet map must have a real height */
 .leaflet-container {
   height: 100%;
   width: 100%;

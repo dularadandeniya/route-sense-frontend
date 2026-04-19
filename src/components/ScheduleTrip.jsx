@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 
 
-// ---------- Map helpers ----------
 const FitBounds = ({ routes }) => {
     const map = useMap();
 
@@ -71,7 +70,7 @@ const RouteLegend = () => (
     </div>
 );
 
-// ---------- Main component ----------
+
 const ScheduleTrip = () => {
     const [form, setForm] = useState({
         tripName: "",
@@ -91,10 +90,10 @@ const ScheduleTrip = () => {
     const [optimizedRoutes, setOptimizedRoutes] = useState([]);
     const [selectedRoute, setSelectedRoute] = useState(null);
     const [selectedScheduleMeta, setSelectedScheduleMeta] = useState(null);
+    const [selectedSchedule, setSelectedSchedule] = useState(null);
     const [optimizingId, setOptimizingId] = useState(null);
     const [selectedIds, setSelectedIds] = useState(new Set());
 
-    // --- NEW EMAIL MODAL STATES ---
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [driverEmail, setDriverEmail] = useState("");
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -194,12 +193,32 @@ const ScheduleTrip = () => {
         }
     };
 
+    const normalizeStop = (s, idx) => {
+        const lat = parseFloat(s?.lat ?? s?.latitude);
+        const lon = parseFloat(s?.lon ?? s?.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+        return {
+            id: s?.id ?? `saved-stop-${idx}`,
+            name: s?.name ?? `Stop ${idx + 1}`,
+            lat,
+            lon,
+        };
+    };
+
     const handleOptimize = async (schedule) => {
         try {
-            setOptimizingId(schedule.id);  // ← track specific ID
+            setOptimizingId(schedule.id);
 
-            const res = await api.post(`/api/schedules/${schedule.id}/optimize`);
-            const routes = res.data || [];
+            const [scheduleRes, optimizeRes] = await Promise.all([
+                api.get(`/api/schedules/${schedule.id}`),
+                api.post(`/api/schedules/${schedule.id}/optimize`),
+            ]);
+
+            const fullSchedule = scheduleRes.data;
+            const routes = optimizeRes.data || [];
+
+            setSelectedSchedule(fullSchedule);
             setOptimizedRoutes(routes);
             setSelectedRoute(routes.length > 0 ? routes[0] : null);
             setSelectedScheduleMeta(schedule);
@@ -210,8 +229,9 @@ const ScheduleTrip = () => {
             setOptimizedRoutes([]);
             setSelectedRoute(null);
             setSelectedScheduleMeta(null);
+            setSelectedSchedule(null);
         } finally {
-            setOptimizingId(null);  // ← clear when done
+            setOptimizingId(null);
         }
     };
 
@@ -231,7 +251,6 @@ const ScheduleTrip = () => {
         return h > 0 ? `${h}h ${m}m` : `${m}m`;
     };
 
-    //  EMAIL FUNCTION
     const handleEmailSend = async () => {
         if (!driverEmail.includes("@")) {
             alert("Please enter a valid email address.");
@@ -245,7 +264,6 @@ const ScheduleTrip = () => {
             : "Direct Route";
         const timeMins = formatTime(selectedRoute.time_seconds);
 
-        // Build Google Maps URL from route start/end positions
         const mapsUrl = routeStartPosition && routeEndPosition
             ? `https://www.google.com/maps/dir/?api=1&origin=${routeStartPosition[0]},${routeStartPosition[1]}&destination=${routeEndPosition[0]},${routeEndPosition[1]}&travelmode=driving`
             : "";
@@ -289,6 +307,32 @@ const ScheduleTrip = () => {
             ? selectedRoutePositions[selectedRoutePositions.length - 1]
             : null;
 
+    const mapStops = selectedSchedule
+        ? (selectedSchedule.stops || []).map(normalizeStop).filter(Boolean)
+        : form.stops
+            .filter((s) => s.location)
+            .map((s) => ({
+                id: s.id,
+                name: s.location.name,
+                lat: s.location.lat,
+                lon: s.location.lon,
+            }));
+
+    const mapStartPosition =
+        selectedSchedule &&
+        Number.isFinite(parseFloat(selectedSchedule.startLat)) &&
+        Number.isFinite(parseFloat(selectedSchedule.startLon))
+            ? [parseFloat(selectedSchedule.startLat), parseFloat(selectedSchedule.startLon)]
+            : routeStartPosition;
+
+    const mapEndPosition =
+        selectedSchedule &&
+        Number.isFinite(parseFloat(selectedSchedule.endLat)) &&
+        Number.isFinite(parseFloat(selectedSchedule.endLon))
+            ? [parseFloat(selectedSchedule.endLat), parseFloat(selectedSchedule.endLon)]
+            : routeEndPosition;
+
+    const lastStopName = selectedRoute?.stop_order?.at(-1);
 
     const handleExportSelected = async () => {
         if (selectedIds.size === 0) return;
@@ -354,7 +398,6 @@ const ScheduleTrip = () => {
     return (
         <div className="container-fluid py-4">
 
-            {/* Email Modal — inline, not a sub-component */}
             {showEmailModal && (
                 <div style={{
                     position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
@@ -421,7 +464,6 @@ const ScheduleTrip = () => {
             )}
 
             <div className="row g-4">
-                {/* Left column */}
                 <div className="col-lg-4">
                     <div className="card p-3 mb-4">
                         <h3 className="mb-3 d-flex align-items-center gap-2">
@@ -601,7 +643,6 @@ const ScheduleTrip = () => {
                                     transition: "background 0.15s",
                                 }}
                             >
-                                {/* Checkbox */}
                                 <input
                                     type="checkbox"
                                     className="form-check-input me-2 flex-shrink-0"
@@ -610,7 +651,6 @@ const ScheduleTrip = () => {
                                     style={{ cursor: "pointer", marginTop: 0 }}
                                 />
 
-                                {/* Trip info */}
                                 <div className="flex-grow-1" style={{ cursor: "pointer" }}
                                      onClick={() => toggleSelect(s.id)}>
                                     <strong>{s.tripName || `Trip #${s.id}`}</strong>
@@ -620,7 +660,6 @@ const ScheduleTrip = () => {
                                     </small>
                                 </div>
 
-                                {/* Optimize button */}
                                 <button
                                     className="btn btn-warning btn-sm flex-shrink-0 d-flex align-items-center gap-1"
                                     onClick={(e) => { e.stopPropagation(); handleOptimize(s); }}
@@ -638,7 +677,6 @@ const ScheduleTrip = () => {
                         )}
                     </div>
 
-                    {/* POLISHED RESULTS CARD */}
                     {selectedRoute && (
                         <div className="card border-0 shadow-lg mt-4" style={{ borderRadius: "15px", overflow: "hidden" }}>
                             <div className="card-header bg-primary text-white p-3 border-0 d-flex justify-content-between align-items-center">
@@ -702,7 +740,6 @@ const ScheduleTrip = () => {
                     )}
                 </div>
 
-                {/* Right column */}
                 <div className="col-lg-8">
                     <div
                         className="card shadow-lg border-0"
@@ -726,48 +763,41 @@ const ScheduleTrip = () => {
 
                             <FitBounds routes={optimizedRoutes} />
 
-                            {routeStartPosition && (
-                                <Marker position={routeStartPosition} icon={GreenPin}>
+                            {mapStartPosition && (
+                                <Marker position={mapStartPosition} icon={GreenPin}>
                                     <Popup>
-                                        Start: {selectedRoute?.stop_order?.[0] || "Start"}
+                                        Start: {selectedSchedule?.startName || selectedRoute?.stop_order?.[0] || "Start"}
                                     </Popup>
                                 </Marker>
                             )}
 
-                            {routeEndPosition && (
-                                <Marker position={routeEndPosition} icon={RedPin}>
+                            {mapEndPosition && (
+                                <Marker position={mapEndPosition} icon={RedPin}>
                                     <Popup>
-                                        End:{" "}
-                                        {selectedRoute?.stop_order?.[
-                                        selectedRoute.stop_order.length - 1
-                                            ] || "End"}
+                                        End: {selectedSchedule?.endName || lastStopName || "End"}
                                     </Popup>
                                 </Marker>
                             )}
 
-                            {/* DRAW NUMBERED STOPS ON MAP */}
-                            {form.stops.map((s, i) => {
-                                if (s.location) {
-                                    // Find optimized order index if available
-                                    let displayNum = i + 1;
-                                    if (selectedRoute && selectedRoute.stop_order) {
-                                        const optIndex = selectedRoute.stop_order.indexOf(s.location.name);
-                                        // -1 because stop_order[0] is start point
-                                        if (optIndex > 0 && optIndex < selectedRoute.stop_order.length - 1) {
-                                            displayNum = optIndex;
-                                        }
+                            {mapStops.map((s, i) => {
+                                let displayNum = i + 1;
+
+                                if (selectedRoute?.stop_order) {
+                                    const optIndex = selectedRoute.stop_order.indexOf(s.name);
+                                    if (optIndex > 0 && optIndex < selectedRoute.stop_order.length - 1) {
+                                        displayNum = optIndex;
                                     }
-                                    return (
-                                        <Marker
-                                            key={s.id}
-                                            position={[s.location.lat, s.location.lon]}
-                                            icon={createNumberIcon(displayNum)}
-                                        >
-                                            <Popup><b>Stop {displayNum}</b>: {s.location.name}</Popup>
-                                        </Marker>
-                                    );
                                 }
-                                return null;
+
+                                return (
+                                    <Marker
+                                        key={s.id}
+                                        position={[s.lat, s.lon]}
+                                        icon={createNumberIcon(displayNum)}
+                                    >
+                                        <Popup><b>Stop {displayNum}</b>: {s.name}</Popup>
+                                    </Marker>
+                                );
                             })}
 
                             {optimizedRoutes.map((route, index) => {
