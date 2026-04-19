@@ -147,11 +147,40 @@ const ScheduleTrip = () => {
     };
 
     const handleSave = async () => {
-        if (!form.start || !form.end || !form.departureDate || !form.departureTime) {
-            alert("Please fill required fields.");
+        if (!form.tripName || !form.tripName.trim()) {
+            alert("Please enter a Trip Name.");
+            return;
+        }
+        if (form.tripName.trim().length < 3) {
+            alert("Trip Name must be at least 3 characters.");
+            return;
+        }
+        if (!form.start) {
+            alert("Please select a Start location.");
+            return;
+        }
+        if (!form.end) {
+            alert("Please select an End location.");
+            return;
+        }
+        if (form.start.lat === form.end.lat && form.start.lon === form.end.lon) {
+            alert("Start and End locations cannot be the same.");
+            return;
+        }
+        if (!form.departureDate) {
+            alert("Please select a Departure Date.");
+            return;
+        }
+        if (!form.departureTime) {
+            alert("Please select a Departure Time.");
             return;
         }
 
+        const departure = new Date(`${form.departureDate}T${form.departureTime}`);
+        if (departure < new Date()) {
+            alert("Departure date and time cannot be in the past.");
+            return;
+        }
         const payload = {
             tripName: form.tripName,
             startName: form.start.name,

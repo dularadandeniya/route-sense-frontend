@@ -111,8 +111,24 @@ const RouteBuilder = () => {
     };
 
     const handleOptimize = async () => {
-        if (!request.start || !request.end) {
-            alert("Please select Start and End locations!");
+        if (!request.start) {
+            alert("Please select a Start location.");
+            return;
+        }
+        if (!request.end) {
+            alert("Please select an End location.");
+            return;
+        }
+
+        if (request.start.lat === request.end.lat &&
+            request.start.lon === request.end.lon) {
+            alert("Start and End locations cannot be the same.");
+            return;
+        }
+
+        const emptyStops = request.stops.filter(s => !s.location);
+        if (emptyStops.length > 0) {
+            alert(`Please pick a location for all ${request.stops.length} stop(s), or remove empty ones.`);
             return;
         }
 
