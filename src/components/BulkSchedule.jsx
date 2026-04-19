@@ -323,7 +323,9 @@ export default function BulkSchedule() {
     };
 
     const successResults = optimizedResults.filter((r) => r.route);
-
+    const visibleResults = highlighted
+        ? successResults.filter(({ tripName }) => tripName === highlighted)
+        : successResults;
 
     return (
         <div className="container-fluid py-4">
@@ -535,9 +537,9 @@ export default function BulkSchedule() {
                                     url="http://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
                                     attribution="&copy; Google Maps"
                                 />
-                                <FitAllBounds allRoutes={successResults} />
+                                <FitAllBounds allRoutes={visibleResults} />
 
-                                {successResults.map(({ tripName, color, route, rowData }) => {
+                                {visibleResults.map(({ tripName, color, route, rowData }) => {
                                     if (!route?.route_sequence?.length) return null;
 
                                     const positions = route.route_sequence.map((p) => [
